@@ -994,6 +994,71 @@ let outbox = lsGet(LS_OUT, []);
 let pref = lsGet(LS_PREF, { method: 'Credit Card' });
 const THEMES = [['harbour', 'Harbour', '#14305a', '#1d58a8'], ['seagreen', 'Sea green', '#0a3d2e', '#0b6a4c'], ['plum', 'Plum', '#3c1c55', '#7b3f9e'], ['graphite', 'Graphite', '#1b2433', '#3a4a63']];
 function applyTheme() { try { document.documentElement.dataset.accent = pref.theme || 'harbour'; } catch (e) {} }
+// ---------- phone notifications (installed app only) ----------
+// The page writes the upcoming reminders to the app's own cache; the service worker reads them in a daily
+// background check (Chrome decides exactly when) and whenever the app is opened, and shows Android notifications.
+const NOTIFY_OK = STANDALONE && 'Notification' in window && 'serviceWorker' in navigator && 'caches' in window;
+let remJson = '', remTimer = null;
+function reminderPayload() {
+  if (!calc) return null;
+  const items = E.reminders(state, todayISO(), calc, 31).map(it => ({
+    key: it.kind + ':' + (it.id || it.month || it.title) + ':' + it.date, kind: it.kind, date: it.date, title: it.title,
+    amount: it.amount || 0, covered: !!it.covered, payroll: !!it.payroll, label: it.month ? shortMonth(it.month) : '' }));
+  return { sym: sym(), items, lastBackup: pref.lastBackup || null, hasData: !!(state.transactions.length || state.debts.length) };
+}
+async function syncReminders() {
+  if (!NOTIFY_OK) return;
+  const p = reminderPayload(); if (!p) return;
+  const json = JSON.stringify(p); if (json === remJson) return; remJson = json;
+  try { const c = await caches.open('cleartrack-data'); await c.put('./reminders.json', new Response(json, { headers: { 'content-type': 'application/json' } })); } catch (e) {}
+}
+function scheduleReminderSync() { if (!NOTIFY_OK) return; clearTimeout(remTimer); remTimer = setTimeout(syncReminders, 400); }
+async function swMessage(msg) { try { const r = await navigator.serviceWorker.ready; if (r.active) r.active.postMessage(msg); return true; } catch (e) { return false; } }
+async function checkOnOpen() {
+  if (!NOTIFY_OK || !pref.notify || Notification.permission !== 'granted') return;
+  await syncReminders(); swMessage({ type: 'check' });
+}
+async function registerBackgroundCheck() {
+  try {
+    const r = await navigator.serviceWorker.ready;
+    if (!('periodicSync' in r)) return 'unsupported';
+    const st = await navigator.permissions.query({ name: 'periodic-background-sync' }).catch(() => ({ state: 'denied' }));
+    if (st.state !== 'granted') return 'not-allowed';
+    await r.periodicSync.register('ct-reminders', { minInterval: 12 * 60 * 60 * 1000 }); return 'on';
+  } catch (e) { return 'unsupported'; }
+}
+async function turnOnNotifications() {
+  if (!NOTIFY_OK) return;
+  let perm = Notification.permission;
+  if (perm !== 'granted') perm = await Notification.requestPermission();
+  if (perm !== 'granted') { pref.notify = false; lsSet(LS_PREF, pref); showToast(perm === 'denied' ? 'Notifications are blocked. Allow them in Android Settings → Apps → ClearTrack.' : 'Notifications not turned on'); renderSetup(); return; }
+  pref.notify = true; pref.bgCheck = await registerBackgroundCheck(); lsSet(LS_PREF, pref);
+  await syncReminders(); swMessage({ type: 'test' }); buzz('success'); renderSetup();
+}
+async function turnOffNotifications() {
+  pref.notify = false; lsSet(LS_PREF, pref);
+  try { const r = await navigator.serviceWorker.ready; if (r.periodicSync) await r.periodicSync.unregister('ct-reminders'); } catch (e) {}
+  showToast('Notifications off'); renderSetup();
+}
+function notifySetupHtml() {
+  const vib = `<label class="toggle" for="hp-on"><span>Vibrate on taps and warnings</span><input type="checkbox" id="hp-on"${pref.haptics === false ? '' : ' checked'}></label>`;
+  if (!STANDALONE) return vib + '<p class="hint" style="margin:10px 0 0">Phone notifications are available in the installed ClearTrack app.</p>';
+  if (!NOTIFY_OK) return vib + '<p class="hint" style="margin:10px 0 0">This browser can’t show notifications.</p>';
+  const perm = Notification.permission, on = pref.notify && perm === 'granted';
+  const bg = { on: 'Daily background check is on. Chrome picks the exact time, usually once a day if you use the app regularly.', 'not-allowed': 'Background checks aren’t allowed yet, so you’ll get alerts when you open the app. Using the app daily from your home screen usually lets Chrome turn them on; tap “Turn on” again later to retry.', unsupported: 'This phone’s Chrome doesn’t offer background checks, so alerts come when you open the app.' }[pref.bgCheck] || '';
+  return `${vib}
+    <p class="hint" style="margin:12px 0 0">Get alerts for bills and debt payments due within 3 days, payday, month-end balances and backups.</p>
+    ${on ? `<p class="small" style="margin:8px 0 0"><span class="pill green">On</span> ${bg}</p>
+      <div class="actions"><button class="btn" style="background:var(--surface);border:1px solid var(--line)" type="button" id="nt-test">Send a test notification</button><button class="btn ghost" type="button" id="nt-off">Turn off notifications</button></div>`
+    : perm === 'denied' ? `<p class="warnline">Notifications are blocked for ClearTrack. Allow them in Android Settings → Apps → ClearTrack → Notifications, then come back here.</p>`
+    : `<div class="actions"><button class="btn primary" type="button" id="nt-on">Turn on notifications</button></div>`}`;
+}
+
+// Haptics: a short tap for done, a gentle double for success, a firmer double for warnings. Follows the phone's vibration setting.
+function buzz(kind) {
+  if (pref.haptics === false) return;
+  try { if (navigator.vibrate) navigator.vibrate(kind === 'warn' ? [35, 70, 35] : kind === 'success' ? [12, 60, 18] : 12); } catch (e) {}
+}
 applyTheme();
 let syncNote = '';
 
@@ -1086,7 +1151,10 @@ async function boot() {
     mode = 'local';
     if (!state) state = withIds(JSON.parse(JSON.stringify({ ...BLANK, transactions: [] })));
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
-    render(); return;
+    render();
+    setTimeout(checkOnOpen, 1500);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') { render(); setTimeout(checkOnOpen, 800); } });
+    return;
   }
   const claude = window.claude;
   const [dbNs, userNs] = claude && claude.use ? await Promise.all([claude.use('db'), claude.use('user')]) : [null, null];
@@ -1195,6 +1263,7 @@ function render() {
   }
   $('#fab').hidden = r === 'setup';
   if (r === 'home') renderHome(); else if (r === 'activity') renderActivity(); else if (r === 'plan') renderPlan(); else if (r === 'debts') renderDebts(); else if (r === 'payoff') renderPayoff(); else if (r === 'savings') renderSavings(); else if (r === 'payday') renderPayday(); else if (r === 'weekly') renderWeekly(); else renderSetup();
+  scheduleReminderSync();
   $('#sync').textContent = syncNote || (mode === 'cloud' ? (outbox.length ? outbox.length + ' change(s) waiting to sync' : 'Saved to your private ClearTrack space')
     : STANDALONE ? 'Saved on this phone · ' + (pref.lastBackup ? 'last backup ' + fmtDate(pref.lastBackup) : 'not backed up yet') : '');
 }
@@ -1749,7 +1818,7 @@ function goalsHtml(d) {
 // ---------- Payday checklist (S7) ----------
 async function saveConfig(mutate, okMsg) {
   const cfg = JSON.parse(JSON.stringify(config())); mutate(cfg);
-  try { await writeOp({ kind: 'config', config: cfg }); Object.assign(state, cfg); cacheLocal(); if (okMsg) showToast(okMsg); return true; }
+  try { await writeOp({ kind: 'config', config: cfg }); Object.assign(state, cfg); cacheLocal(); if (okMsg) showToast(okMsg); buzz('tap'); return true; }
   catch (e) { showToast('Could not save. Check your connection and try again.'); return false; }
 }
 const STEP_STATES = ['Not Yet', 'Done', 'Skipped'];
@@ -2087,7 +2156,7 @@ function drawImport() {
       const newRules = Object.entries(imp.remember).map(([i, kw]) => ({ keyword: String(kw).trim(), category: imp.picks[i] })).filter(r => r.keyword && r.category && !(state.merchantRules || []).some(x => x.keyword.toLowerCase() === r.keyword.toLowerCase()));
       if (newRules.length) { const cfg = JSON.parse(JSON.stringify(config())); cfg.merchantRules = [...newRules, ...(cfg.merchantRules || [])]; await writeOp({ kind: 'config', config: cfg }); Object.assign(state, cfg); cacheLocal(); }
       layer.innerHTML = ''; render();
-      showToast(`Added ${todo.length} transaction${todo.length === 1 ? '' : 's'}` + (newRules.length ? ` and ${newRules.length} merchant rule${newRules.length === 1 ? '' : 's'}` : ''));
+      buzz('success'); showToast(`Added ${todo.length} transaction${todo.length === 1 ? '' : 's'}` + (newRules.length ? ` and ${newRules.length} merchant rule${newRules.length === 1 ? '' : 's'}` : ''));
     } catch (e) { go.disabled = false; go.textContent = 'Try again'; showToast('Some rows did not save. Check your connection and try again.'); }
   });
 }
@@ -2141,7 +2210,7 @@ function openTx(existing) {
       catch (e) { del.disabled = false; showErr('Could not delete. Check your connection and try again.'); }
     });
   }
-  function showErr(m) { const el = $('#tx-err'); el.textContent = m; el.hidden = false; }
+  function showErr(m) { const el = $('#tx-err'); el.textContent = m; el.hidden = false; buzz('warn'); }
   $('#txform').addEventListener('submit', async e => {
     e.preventDefault();
     const raw = amt.value.replace(/[,\s]/g, '').replace(/^J?\$/, '');
@@ -2155,6 +2224,9 @@ function openTx(existing) {
       await writeOp({ kind: 'tx-set', tx: rec });
       pref.method = rec.paymentMethod; lsSet(LS_PREF, pref);
       close(); showToast(editing ? 'Saved' : 'Added ' + two(a) + (rec.category ? ' · ' + rec.category : '')); refreshAfterWrite();
+      // A firmer buzz when a card purchase leaves the card at or past a warning level.
+      let lvl = null; try { const cc = E.compute(state, todayISO()).card; lvl = cc && cc.level; } catch (x) {}
+      buzz(rec.paymentMethod === 'Credit Card' && (lvl === 'amber' || lvl === 'red') ? 'warn' : 'success');
     } catch (err) { $('#tx-save').disabled = false; showErr('Could not save. Check your connection and try again.'); }
   });
 }
@@ -2255,6 +2327,7 @@ function renderSetup() {
     ${sec('payroll', 'Payroll deductions (' + d.payrollDeductions.length + ')', pr)}
     ${sec('goals', 'Savings goals (' + (d.savingsGoals || []).length + ')', goalsHtml(d))}
     ${sec('rules', 'Merchant rules (' + (d.merchantRules || []).length + ')', rules)}
+    ${sec('notify', 'Notifications and vibration', notifySetupHtml())}
     ${sec('look', 'Appearance', `<p class="hint" style="margin:0 0 10px">Pick a colour theme. Dark mode follows your phone's setting.</p><div class="swatches">${THEMES.map(([k, label, a, b]) => `<button type="button" data-theme-pick="${k}" aria-pressed="${(pref.theme || 'harbour') === k}"><i style="background:radial-gradient(120% 140% at 100% 0%, ${b}, ${a} 62%)"></i>${label}</button>`).join('')}</div>`)}
     ${sec('export', 'Export and backup', exp)}
   </div><div id="savebar-slot"></div>`;
@@ -2273,6 +2346,10 @@ function renderSetup() {
   v.querySelectorAll('[data-rdel]').forEach(b => b.addEventListener('click', () => { readSetup(); setupDraft.merchantRules.splice(+b.dataset.rdel, 1); renderSetup(); showSavebar(); }));
   $('#ex-tx').addEventListener('click', () => exportFile('transactions'));
   $('#bk-save').addEventListener('click', backupNow);
+  const hp = $('#hp-on'); if (hp) hp.addEventListener('change', e => { e.stopPropagation(); pref.haptics = hp.checked; lsSet(LS_PREF, pref); if (hp.checked) buzz('tap'); });
+  const nOn = $('#nt-on'); if (nOn) nOn.addEventListener('click', turnOnNotifications);
+  const nOff = $('#nt-off'); if (nOff) nOff.addEventListener('click', turnOffNotifications);
+  const nT = $('#nt-test'); if (nT) nT.addEventListener('click', () => { swMessage({ type: 'test' }); showToast('Test notification sent'); });
   v.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => { pref.theme = b.dataset.themePick; lsSet(LS_PREF, pref); applyTheme(); v.querySelectorAll('[data-theme-pick]').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
   const bkr = $('#bk-restore'); if (bkr) bkr.addEventListener('click', openRestore);
   $('#ex-bal').addEventListener('click', () => exportFile('balances'));
@@ -2349,13 +2426,13 @@ async function saveSetup() {
     await writeOp({ kind: 'config', config: draft });
     for (const [from, to] of renames) for (const tx of state.transactions.filter(x => x.category === from)) await writeOp({ kind: 'tx-set', tx: { ...tx, category: to } });
     Object.assign(state, JSON.parse(JSON.stringify(draft)));
-    setupDraft = null; cacheLocal(); render(); showToast('Setup saved');
+    setupDraft = null; cacheLocal(); render(); showToast('Setup saved'); buzz('success');
   } catch (e) { if (go) { go.disabled = false; go.textContent = 'Save'; } showToast('Could not save. Check your connection and try again.'); }
 }
 
 // ---------- misc ----------
 let toastT;
-function showToast(msg) { let el = document.getElementById('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); } el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2600); }
+function showToast(msg) { if (/^(Could not|Some rows)/.test(msg)) buzz('warn'); let el = document.getElementById('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); } el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2600); }
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) { if (g.dataset.go === 'activity') filt = { q: '', cat: '__none', method: '' }; go(g.dataset.go); } });
 
 boot().then(() => { if (location.hash === '#add') { history.replaceState(null, '', '#home'); render(); openTx(null); } });
