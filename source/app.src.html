@@ -67,7 +67,9 @@ button { cursor: pointer }
 /* header */
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding-block: 6px 14px }
 .brand { font-family: var(--f-display); font-weight: 700; font-size: 18px; letter-spacing: -.02em }
-.brand span { color: var(--accent) }
+.brand { display: flex; align-items: center; gap: 8px }
+.brand span { color: var(--accent); margin-left: -8px }
+.brand .logo { width: 28px; height: 28px; flex: none }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; font-weight: 500; white-space: nowrap }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent) }
 
@@ -314,13 +316,26 @@ details.more > summary { color: var(--muted) }
 .hero-sub { display: flex; align-items: center; gap: 8px }
 .info-btn { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.55); background: transparent; color: #fff; font: 700 13px/1 var(--f-ui); display: grid; place-items: center; padding: 0 }
 .info-btn[aria-expanded="true"] { background: rgba(255,255,255,.2) }
+.toast { display: flex; align-items: center; gap: 14px }
+.toast-act { background: none; border: 0; color: var(--hl); font-weight: 800; padding: 4px 2px; text-transform: uppercase; letter-spacing: .04em; font-size: 13px }
+.hbar { padding: 7px 0 }
+.hbar .t { font-weight: 600; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap }
+.trend { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; height: 120px; align-items: end }
+.tcol { display: grid; grid-template-rows: 16px 1fr 16px; height: 100%; text-align: center; min-width: 0 }
+.tv { font-size: 10.5px; color: var(--muted); white-space: nowrap; overflow: hidden }
+.tb { display: flex; align-items: flex-end; justify-content: center; border-bottom: 1px solid var(--line) }
+.tb i { display: block; width: 70%; max-width: 30px; background: color-mix(in srgb, var(--accent) 45%, transparent); border-radius: 4px 4px 0 0 }
+.tb i.cur { background: var(--accent) }
+.tl { font-size: 11px; color: var(--muted); font-weight: 600; padding-top: 2px }
+#lock { position: fixed; inset: 0; z-index: 100; background: var(--bg); display: grid; place-items: center; padding: max(24px, env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px)) max(24px, env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px)); text-align: center }
+html.locked .wrap, html.locked .tabs, html.locked .fab { visibility: hidden }
 @media (max-width: 360px) { .grid2, .two, .three { grid-template-columns: 1fr } }
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .22s ease-out } @keyframes up { from { transform: translateY(24px); opacity: .6 } } }
 </style>
 
 <div class="wrap">
   <header class="top">
-    <div class="brand">Clear<span>Track</span></div>
+    <div class="brand"><svg class="logo" viewBox="0 0 84 84" aria-hidden="true"><rect width="84" height="84" rx="19" fill="var(--hero1)"/><path d="M59 22 A24 24 0 1 0 59 62" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><path d="M32 42 L42 52 L64 28" fill="none" stroke="var(--hl)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>Clear<span>Track</span></div>
     <a class="chip" id="paychip" href="#payday" style="text-decoration:none;color:inherit"><span class="dot"></span><span id="paychip-t">Loading…</span></a>
   </header>
   <main id="view"><div class="empty">Loading your numbers…</div></main>
@@ -387,6 +402,10 @@ function reminderPayload() {
   const items = E.reminders(state, todayISO(), calc, 31).map(it => ({
     key: it.kind + ':' + (it.id || it.month || it.title) + ':' + it.date, kind: it.kind, date: it.date, title: it.title,
     amount: it.amount || 0, covered: !!it.covered, payroll: !!it.payroll, label: it.month ? shortMonth(it.month) : '' }));
+  const today = todayISO(), mk = E.monthKey(today);
+  for (const al of E.budgetAlerts(state, today)) items.push({ key: 'budget:' + al.name + ':' + mk + ':' + al.level, kind: 'budget', once: true, date: today, title: catLabel(al.name), amount: al.actual, budget: al.budget, level: al.level });
+  for (const r of E.recurringStatus(state, today)) if (!r.logged && !r.auto) items.push({ key: 'recurring:' + r.id + ':' + r.date, kind: 'recurring', date: r.date, title: r.description, amount: +r.amount });
+  const ro = E.rolloverDue(state, today); if (ro) items.push({ key: 'rollover:' + ro.payday, kind: 'rollover', once: true, date: today, title: 'Start the new pay cycle', label: shortMonth(ro.fundMonth) });
   return { sym: sym(), items, lastBackup: pref.lastBackup || null, hasData: !!(state.transactions.length || state.debts.length) };
 }
 async function syncReminders() {
@@ -447,6 +466,29 @@ function payEntryFor(paydayIso) {
     notes: `Received ${fmtDate(paydayIso)}` + (payFundsNext() ? `. Dated ${fmtDate(fund)} because it funds ${m(fund)} spending.` : '') };
 }
 function payLoggedFor(fundMonth) { const k = E.monthKey(fundMonth); return state.transactions.some(t => t.category === 'Net Pay' && t.date && E.monthKey(t.date) === k); }
+// ---------- recurring transactions & description suggestions ----------
+function descSuggestions() {
+  const seen = new Set(), out = [];
+  for (const t of state.transactions.slice().sort((a, b) => a.date < b.date ? 1 : -1)) { const d = String(t.description || '').trim(); if (d && !seen.has(d.toLowerCase())) { seen.add(d.toLowerCase()); out.push(d); } if (out.length >= 80) break; }
+  return out;
+}
+async function logRecurring(r, quiet) {
+  const tx = { id: 't' + uid8(), date: r.date, description: r.description, category: r.category, amount: +r.amount, paymentMethod: r.paymentMethod || 'Credit Card', essential: !!r.essential, notes: 'Monthly' + (r.auto ? ' (logged automatically)' : '') };
+  await writeOp({ kind: 'tx-set', tx });
+  await saveConfig(cfg => { const x = (cfg.recurring || []).find(y => y.id === r.id); if (x) x.lastMonth = E.monthKey(r.date); });
+  if (!quiet) { buzz('success'); showToast('Logged ' + r.description + ' · ' + whole(r.amount)); }
+  return tx;
+}
+let autoLogging = false;
+async function autoLogRecurring() {
+  if (autoLogging || !state || !(state.recurring || []).length) return;
+  const due = E.recurringStatus(state, todayISO()).filter(r => r.due && r.auto);
+  if (!due.length) return;
+  autoLogging = true;
+  try { for (const r of due) await logRecurring(r, true); showToast('Logged ' + due.length + ' monthly item' + (due.length === 1 ? '' : 's') + ': ' + due.map(r => r.description).join(', ')); render(); }
+  catch (e) {} finally { autoLogging = false; }
+}
+
 // Haptics: a short tap for done, a gentle double for success, a firmer double for warnings. Follows the phone's vibration setting.
 function buzz(kind) {
   if (pref.haptics === false) return;
@@ -459,7 +501,7 @@ const BLANK = {
   settings: { planningMonth: todayISO().slice(0, 8) + '01', usualPayday: 28, payFrequency: 'Monthly', netPayPerPeriod: 0, otherIncome: 0,
     cashOnHand: 0, cashAsOfDate: todayISO(), cardHardCeiling: 0, cardSoftCeiling: 0, criticalPct: 0.975, watchPct: 0.85,
     monthlyOutsideSavings: 0, cashBufferTarget: 0, emergencyFundTarget: 0, payoffMethod: 'Avalanche', monthlyExtraPayment: 0, currencySymbol: 'J$' },
-  categories: [], debts: [], bills: [], savingsAccounts: [], payrollDeductions: [], merchantRules: [], savingsGoals: [], weeklyCheckIns: [], paydayChecklists: {}, monthSnapshots: []
+  categories: [], debts: [], bills: [], savingsAccounts: [], payrollDeductions: [], merchantRules: [], savingsGoals: [], weeklyCheckIns: [], paydayChecklists: {}, monthSnapshots: [], recurring: []
 };
 function withIds(s) {
   s.categories = (s.categories || []).map((c, i) => ({ id: c.id || 'c' + uid8(), ...c }));
@@ -471,6 +513,7 @@ function withIds(s) {
   s.weeklyCheckIns = (s.weeklyCheckIns || []).map(w => ({ ...w, id: w.id || 'w' + uid8() }));
   s.paydayChecklists = s.paydayChecklists || {};
   s.monthSnapshots = s.monthSnapshots || [];
+  s.recurring = (s.recurring || []).map(r => ({ ...r, id: r.id || 'r' + uid8() }));
   return s;
 }
 function config() { const { transactions, ...rest } = state; return rest; }
@@ -546,6 +589,7 @@ async function boot() {
   const cached = lsGet(LS_STATE, null);
   if (cached) { state = withIds(cached); render(); }
   if (STANDALONE) {
+    if (lockEnabled()) showLock(); else unlocked = true;
     mode = 'local';
     if (!state) state = withIds(JSON.parse(JSON.stringify({ ...BLANK, transactions: [] })));
     try { if (navigator.storage && navigator.storage.persist) navigator.storage.persist(); } catch (e) {}
@@ -662,6 +706,7 @@ function render() {
   $('#fab').hidden = r === 'setup';
   if (r === 'home') renderHome(); else if (r === 'activity') renderActivity(); else if (r === 'plan') renderPlan(); else if (r === 'debts') renderDebts(); else if (r === 'payoff') renderPayoff(); else if (r === 'savings') renderSavings(); else if (r === 'payday') renderPayday(); else if (r === 'weekly') renderWeekly(); else renderSetup();
   scheduleReminderSync();
+  if (mode !== 'loading' && !autoLogging) setTimeout(autoLogRecurring, 900);
   $('#sync').textContent = syncNote || (mode === 'cloud' ? (outbox.length ? outbox.length + ' change(s) waiting to sync' : 'Saved to your private ClearTrack space')
     : STANDALONE ? 'Saved on this phone · ' + (pref.lastBackup ? 'last backup ' + fmtDate(pref.lastBackup) : 'not backed up yet') : '');
 }
@@ -728,6 +773,7 @@ function renderHome() {
       </div>
     </section>
     <div class="stack">
+      ${budgetBanner()}
       ${comingUp()}
       <div class="grid2">${tiles}</div>
       ${homeSaveOrPay()}
@@ -777,6 +823,7 @@ function renderActivity() {
   const unc = state.transactions.filter(t => !t.category).length;
   let html = `<div class="toolbar"><button class="tbtn" id="btn-import" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>Import statement</button><button class="tbtn" id="btn-export" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15V4M7 9l5-5 5 5M5 20h14"/></svg>Export CSV</button></div>`;
   html += unc ? `<div class="banner" style="margin-bottom:12px"><span>${unc} transaction${unc > 1 ? 's need' : ' needs'} a category.</span><button id="showunc">Show</button></div>` : '';
+  html += spendingOverview();
   html += `<div class="search">
     <input class="in" id="f-q" type="search" placeholder="Search description, category or notes" value="${esc(filt.q)}" aria-label="Search transactions">
     <div class="filters">
@@ -796,6 +843,7 @@ function renderActivity() {
       }).join('') + `</ul></section>`;
   }
   v.innerHTML = html;
+  const ins = $('#insight'); if (ins) ins.addEventListener('toggle', () => { insightOpen = ins.open; });
   const q = $('#f-q'); q.addEventListener('input', () => { filt.q = q.value; const pos = q.selectionStart; renderActivity(); const n = $('#f-q'); n.focus(); n.setSelectionRange(pos, pos); });
   $('#f-cat').addEventListener('change', e => { filt.cat = e.target.value; renderActivity(); });
   $('#f-m').addEventListener('change', e => { filt.method = e.target.value; renderActivity(); });
@@ -1198,6 +1246,19 @@ function renderSavings() {
         <ul class="list" style="margin:0">${accts || '<li><div class="main s">Add savings accounts in Setup.</div></li>'}</ul><p class="hint" style="margin:4px 0 12px">Update balances in Setup.</p></div></details>
     </div>`;
 }
+function recurHtml(d) {
+  const st = E.recurringStatus({ ...state, recurring: d.recurring || [] }, todayISO());
+  const items = (d.recurring || []).map((r, i) => { const x = st.find(y => y.id === r.id); return `<div class="item">
+      <div class="field"><label for="rc-desc-${i}">Description</label><input class="in" id="rc-desc-${i}" value="${esc(r.description)}"></div>
+      <div class="two"><div class="field"><label for="rc-amt-${i}">Amount</label><input class="in" type="number" inputmode="decimal" step="0.01" id="rc-amt-${i}" value="${r.amount}"></div>
+        <div class="field"><label for="rc-day-${i}">Day of month</label><input class="in" type="number" inputmode="numeric" min="1" max="31" id="rc-day-${i}" value="${r.day || 1}"></div></div>
+      <div class="two"><div class="field"><label for="rc-cat-${i}">Category</label><select class="in" id="rc-cat-${i}"><option value="">Choose…</option>${allCategories().map(c => `<option value="${esc(c.name)}"${c.name === r.category ? ' selected' : ''}>${esc(catLabel(c.name))}</option>`).join('')}</select></div>
+        <div class="field"><label for="rc-m-${i}">Paid with</label><select class="in" id="rc-m-${i}">${METHODS.map(m => `<option value="${m}"${m === r.paymentMethod ? ' selected' : ''}>${METHOD_LABEL[m]}</option>`).join('')}</select></div></div>
+      <label class="toggle" for="rc-auto-${i}"><span>Log it automatically on the day</span><input type="checkbox" id="rc-auto-${i}"${r.auto ? ' checked' : ''}></label>
+      ${x ? `<p class="hint" style="margin:0">${x.logged ? 'Logged this month.' : x.due ? 'Due now, not logged yet.' : 'Next: ' + fmtDate(x.date) + '.'}</p>` : ''}
+      <button type="button" class="linkbtn del" data-del="recurring" data-i="${i}">Remove</button></div>`; }).join('');
+  return `<p class="hint" style="margin:0">Monthly items like subscriptions. Each one shows in Coming up with a Log button on its day, or logs itself if you choose. Tip: open any past transaction and tap Repeat monthly.</p>${items}<button type="button" class="linkbtn" data-add="recurring">+ Add monthly item</button>`;
+}
 function goalsHtml(d) {
   const num = (id, label, val) => `<div class="field"><label for="${id}">${label}</label><input class="in" type="number" inputmode="decimal" step="0.01" id="${id}" value="${val ?? ''}"></div>`;
   const pick = (id, label, val, opts) => `<div class="field"><label for="${id}">${label}</label><select class="in" id="${id}">${opts.map(([v, t]) => `<option value="${esc(v)}"${v === val ? ' selected' : ''}>${esc(t)}</option>`).join('')}</select></div>`;
@@ -1340,12 +1401,164 @@ function openCheckIn(existing) {
   });
 }
 
+// ---------- spending insight & budget alerts ----------
+let insightOpen = true;
+function spendingOverview() {
+  const today = todayISO(), mk = E.monthKey(today), prevMk = E.monthKey(E.edate(E.monthStart(today), -1));
+  const byCat = {}; let total = 0;
+  for (const t of state.transactions) if (t.date && E.monthKey(t.date) === mk && E.flowType(t, state) === 'Expense') { byCat[t.category || 'No category'] = (byCat[t.category || 'No category'] || 0) + +t.amount; total += +t.amount; }
+  const prev = E.monthFlows(state, prevMk)['Total Spend'];
+  const rows = Object.entries(byCat).sort((a, b) => b[1] - a[1]);
+  const top = rows.slice(0, 6), rest = rows.slice(6).reduce((a, r) => a + r[1], 0);
+  if (rest > 0) top.push(['Everything else', rest]);
+  const max = Math.max(1, ...top.map(r => r[1]));
+  const budgets = Object.fromEntries(state.categories.map(c => [c.name, +c.monthlyBudget || 0]));
+  const bars = top.map(([name, v]) => { const b = budgets[name], over = b > 0 && v > b;
+    return `<div class="hbar"><div class="row small"><span class="t">${esc(catLabel(name))}</span><span><b>${whole(v)}</b>${b > 0 ? `<span class="muted"> / ${shortMoney(b)}</span>` : ''}</span></div>
+      <div class="bar" style="margin-top:4px"><span class="${over ? 'over' : ''}" style="width:${v / max * 100}%"></span></div></div>`; }).join('');
+  // last 6 months of spending
+  const months = []; for (let i = 5; i >= 0; i--) { const m = E.edate(E.monthStart(today), -i); months.push([m, E.monthFlows(state, E.monthKey(m))['Total Spend']]); }
+  const mmax = Math.max(1, ...months.map(x => x[1]));
+  const trend = `<div class="trend" role="img" aria-label="Spending over the last six months">${months.map(([m, v], i) => `<div class="tcol"><span class="tv">${v ? shortMoney(v) : ''}</span><div class="tb"><i style="height:${Math.max(v / mmax * 100, v ? 3 : 0)}%" class="${i === 5 ? 'cur' : ''}"></i></div><span class="tl">${MON[+m.slice(5, 7) - 1]}</span></div>`).join('')}</div>`;
+  const change = prev ? `${total > prev ? '▲' : '▼'} ${whole(Math.abs(total - prev))} vs all of ${MON[+prevMk.slice(4) - 1]}` : '';
+  return `<details class="fold" id="insight"${insightOpen ? ' open' : ''} style="margin-bottom:12px"><summary><div class="row"><h2>${MON[+mk.slice(4) - 1]} so far</h2><span class="small muted">${whole(total)} spent</span></div>${change ? `<div class="small muted" style="margin-top:2px">${change}</div>` : ''}</summary>
+    <div class="fold-body">${bars || '<p class="small muted">No spending logged this month yet.</p>'}
+      <div class="lbl" style="margin:14px 0 6px">Last 6 months</div>${trend}<div style="height:10px"></div></div></details>`;
+}
+function budgetBanner() {
+  const al = E.budgetAlerts(state, todayISO()); if (!al.length) return '';
+  const over = al.filter(a => a.level === 'over'), near = al.filter(a => a.level === 'near');
+  const txt = over.length ? `${over.length} categor${over.length === 1 ? 'y is' : 'ies are'} over budget this month${near.length ? `, ${near.length} close` : ''}: ${over.slice(0, 2).map(a => esc(catLabel(a.name))).join(', ')}${over.length > 2 ? '…' : ''}`
+    : `${near.length} categor${near.length === 1 ? 'y is' : 'ies are'} past 80% of budget: ${near.slice(0, 2).map(a => esc(catLabel(a.name))).join(', ')}`;
+  return `<div class="banner${over.length ? '' : ' info'}"><span>${txt}</span><button data-go="plan">See plan</button></div>`;
+}
+
+// ---------- share backup (Google Drive, email…) ----------
+function canShareFiles() { try { return STANDALONE && navigator.canShare && navigator.canShare({ files: [new File(['x'], 'x.json', { type: 'application/json' })] }); } catch (e) { return false; } }
+async function shareBackup() {
+  const name = `cleartrack-backup-${todayISO()}.json`;
+  try {
+    const file = new File([makeBackup()], name, { type: 'application/json' });
+    await navigator.share({ files: [file], title: 'ClearTrack backup', text: 'ClearTrack backup ' + fmtDate(todayISO()) });
+    pref.lastBackup = todayISO(); lsSet(LS_PREF, pref); buzz('success'); showToast('Backup shared'); render();
+  } catch (e) { if (!e || e.name !== 'AbortError') { showToast('Sharing isn’t available, so the file was saved to Downloads instead.'); backupNow(); } }
+}
+
+// ---------- new pay cycle (month roll-over) ----------
+function openRollover() {
+  const ro = E.rolloverDue(state, todayISO()); if (!ro || !calc) return;
+  const pe = payEntryFor(ro.payday), payDone = payLoggedFor(pe.fundMonth), pay = +state.settings.netPayPerPeriod || 0;
+  const suggested = Math.round((calc.cash + calc.netPayReceived) * 100) / 100;
+  $('#layer').innerHTML = `<div class="scrim" id="scrim"><form class="sheet" id="roform" role="dialog" aria-modal="true" aria-labelledby="ro-h" novalidate><div class="grab"></div>
+    <h3 id="ro-h">Start the ${shortMonth(ro.fundMonth)} cycle</h3>
+    <p class="small muted" style="margin:0">Payday was ${wd(ro.payday)} ${fmtDate(ro.payday)}. This moves your plan to ${shortMonth(ro.fundMonth)} and resets cash on hand, so Safe to Spend starts from the right figure.</p>
+    <div class="field"><label for="ro-cash">Cash on hand now (bank + wallet)</label><input class="in" type="number" inputmode="decimal" step="0.01" id="ro-cash" value="${suggested.toFixed(2)}">
+      <span class="hint">Our estimate: your live cash${calc.netPayReceived ? ' plus this pay' : ''}. Check it against your bank app and correct it if needed.</span></div>
+    ${payDone ? `<p class="small" style="color:var(--good);font-weight:600;margin:12px 0 0">✓ ${shortMonth(pe.fundMonth)} pay already logged</p>` : `<label class="toggle" for="ro-pay" style="margin-top:12px"><span>Log this pay: ${whole(pay)} for ${shortMonth(pe.fundMonth)}</span><input type="checkbox" id="ro-pay" checked></label>`}
+    <div class="actions"><button class="btn primary" type="submit" id="ro-go">Start ${shortMonth(ro.fundMonth)}</button><button class="btn ghost" type="button" id="ro-cancel">Not now</button></div></form></div>`;
+  const close = () => { $('#layer').innerHTML = ''; };
+  $('#ro-cancel').addEventListener('click', close);
+  $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') close(); });
+  $('#roform').addEventListener('submit', async e => {
+    e.preventDefault(); const go = $('#ro-go'); go.disabled = true;
+    const cash = parseFloat($('#ro-cash').value), logPay = !payDone && $('#ro-pay') && $('#ro-pay').checked;
+    try {
+      if (logPay) await writeOp({ kind: 'tx-set', tx: { id: 't' + uid8(), date: pe.date, description: pe.description, category: 'Net Pay', amount: pay, paymentMethod: 'Bank Transfer', essential: true, notes: pe.notes } });
+      const ok = await saveConfig(cfg => {
+        cfg.settings.planningMonth = ro.fundMonth;
+        if (isFinite(cash)) { cfg.settings.cashOnHand = cash; cfg.settings.cashAsOfDate = todayISO(); }
+        cfg.paydayChecklists = cfg.paydayChecklists || {}; if (logPay || payDone) cfg.paydayChecklists[ro.payday] = { ...(cfg.paydayChecklists[ro.payday] || {}), salary: 'Done' };
+      });
+      if (ok) { close(); buzz('success'); showToast(shortMonth(ro.fundMonth) + ' cycle started'); render(); } else go.disabled = false;
+    } catch (x) { go.disabled = false; showToast('Could not save. Check your connection and try again.'); }
+  });
+}
+
+// ---------- app lock (PIN, with optional fingerprint) ----------
+const LS_LOCK = 'ct.lock.v1';
+let lockCfg = lsGet(LS_LOCK, null), hiddenAt = 0, unlocked = false;
+const b64 = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((s.length + 3) % 4)), c => c.charCodeAt(0));
+async function hashPin(pin, salt) { const d = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salt + ':' + pin)); return b64(d); }
+function lockEnabled() { return STANDALONE && lockCfg && lockCfg.pinHash; }
+async function fingerprintUnlock() {
+  if (!lockCfg || !lockCfg.credId) return false;
+  try { await navigator.credentials.get({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), allowCredentials: [{ type: 'public-key', id: unb64(lockCfg.credId) }], userVerification: 'required', timeout: 60000 } }); return true; }
+  catch (e) { return false; }
+}
+function showLock() {
+  if (!lockEnabled()) return;
+  unlocked = false;
+  let el = document.getElementById('lock');
+  if (!el) { el = document.createElement('div'); el.id = 'lock'; document.body.appendChild(el); }
+  el.innerHTML = `<div class="lock-in"><svg class="logo" viewBox="0 0 84 84" aria-hidden="true" style="width:64px;height:64px"><rect width="84" height="84" rx="19" fill="var(--hero1)"/><path d="M59 22 A24 24 0 1 0 59 62" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round"/><path d="M32 42 L42 52 L64 28" fill="none" stroke="var(--hl)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <h2 style="margin:14px 0 4px">ClearTrack is locked</h2><p class="small muted" style="margin:0 0 16px">Enter your PIN${lockCfg.credId ? ' or use your fingerprint' : ''}.</p>
+    <form id="lock-form" novalidate><input class="in" id="lock-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="8" aria-label="PIN" style="text-align:center;font-size:24px;letter-spacing:.3em;max-width:220px">
+    <div class="err" id="lock-err" hidden></div>
+    <div class="actions" style="max-width:260px;margin-inline:auto"><button class="btn primary" type="submit">Unlock</button>${lockCfg.credId ? '<button class="btn" type="button" id="lock-fp" style="background:var(--surface);border:1px solid var(--line)">Use fingerprint</button>' : ''}<button class="btn ghost" type="button" id="lock-forgot">Forgot PIN?</button></div></form></div>`;
+  el.hidden = false; document.documentElement.classList.add('locked');
+  const done = () => { unlocked = true; el.hidden = true; el.innerHTML = ''; document.documentElement.classList.remove('locked'); buzz('tap'); };
+  $('#lock-form').addEventListener('submit', async e => {
+    e.preventDefault(); const pin = $('#lock-pin').value;
+    if (await hashPin(pin, lockCfg.salt) === lockCfg.pinHash) done();
+    else { const er = $('#lock-err'); er.textContent = 'That PIN isn’t right.'; er.hidden = false; buzz('warn'); $('#lock-pin').value = ''; }
+  });
+  const fp = $('#lock-fp'); if (fp) { fp.addEventListener('click', async () => { if (await fingerprintUnlock()) done(); }); setTimeout(async () => { if (!unlocked && document.visibilityState === 'visible' && await fingerprintUnlock()) done(); }, 300); }
+  let armed = false;
+  $('#lock-forgot').addEventListener('click', () => {
+    const b = $('#lock-forgot');
+    if (!armed) { armed = true; b.textContent = 'Tap again to erase this phone’s data'; $('#lock-err').textContent = 'A forgotten PIN can’t be recovered. You can erase ClearTrack’s data on this phone and restore your latest backup file.'; $('#lock-err').hidden = false; return; }
+    try { [LS_STATE, LS_OUT, LS_PREF, LS_LOCK].forEach(k => localStorage.removeItem(k)); } catch (x) {} location.reload();
+  });
+  setTimeout(() => { const p = $('#lock-pin'); if (p && !lockCfg.credId) p.focus(); }, 100);
+}
+if (STANDALONE) document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') hiddenAt = Date.now();
+  else if (lockEnabled() && unlocked && hiddenAt && Date.now() - hiddenAt > 60000) showLock();
+});
+function lockSetupHtml() {
+  if (!STANDALONE) return '<p class="hint" style="margin:0">App lock is available in the installed ClearTrack app.</p>';
+  if (lockEnabled()) return `<p class="small" style="margin:0"><span class="pill green">On</span> ClearTrack asks for your PIN${lockCfg.credId ? ' or fingerprint' : ''} when it opens, and after a minute away.</p>
+    <div class="actions">${lockCfg.credId ? '' : (window.PublicKeyCredential ? '<button class="btn" type="button" id="lk-fp" style="background:var(--surface);border:1px solid var(--line)">Add fingerprint unlock</button>' : '')}<button class="btn ghost" type="button" id="lk-off">Turn off app lock</button></div>`;
+  return `<p class="hint" style="margin:0 0 10px">Ask for a PIN when ClearTrack opens. You can add fingerprint unlock after setting a PIN.</p>
+    <div class="two"><div class="field" style="margin-top:0"><label for="lk-pin">New PIN (4–8 digits)</label><input class="in" type="password" inputmode="numeric" id="lk-pin" maxlength="8" autocomplete="new-password"></div>
+    <div class="field" style="margin-top:0"><label for="lk-pin2">Repeat PIN</label><input class="in" type="password" inputmode="numeric" id="lk-pin2" maxlength="8" autocomplete="new-password"></div></div>
+    <div class="err" id="lk-err" hidden></div><div class="actions"><button class="btn primary" type="button" id="lk-on">Turn on app lock</button></div>`;
+}
+function wireLockSetup() {
+  const on = $('#lk-on'); if (on) on.addEventListener('click', async () => {
+    const p1 = $('#lk-pin').value, p2 = $('#lk-pin2').value, er = $('#lk-err');
+    if (!/^\d{4,8}$/.test(p1)) { er.textContent = 'Use 4 to 8 digits.'; er.hidden = false; buzz('warn'); return; }
+    if (p1 !== p2) { er.textContent = 'The two PINs don’t match.'; er.hidden = false; buzz('warn'); return; }
+    const salt = b64(crypto.getRandomValues(new Uint8Array(16)));
+    lockCfg = { salt, pinHash: await hashPin(p1, salt), credId: null }; lsSet(LS_LOCK, lockCfg); unlocked = true;
+    buzz('success'); showToast('App lock is on'); renderSetup();
+  });
+  const fp = $('#lk-fp'); if (fp) fp.addEventListener('click', async () => {
+    try {
+      const cred = await navigator.credentials.create({ publicKey: { challenge: crypto.getRandomValues(new Uint8Array(32)), rp: { name: 'ClearTrack', id: location.hostname },
+        user: { id: crypto.getRandomValues(new Uint8Array(16)), name: 'ClearTrack', displayName: 'ClearTrack app lock' },
+        pubKeyCredParams: [{ type: 'public-key', alg: -7 }, { type: 'public-key', alg: -257 }],
+        authenticatorSelection: { authenticatorAttachment: 'platform', userVerification: 'required', residentKey: 'discouraged' }, timeout: 60000 } });
+      lockCfg.credId = b64(cred.rawId); lsSet(LS_LOCK, lockCfg); buzz('success'); showToast('Fingerprint unlock added'); renderSetup();
+    } catch (e) { showToast('Fingerprint wasn’t added. Check that a fingerprint is set up on this phone.'); }
+  });
+  const off = $('#lk-off'); if (off) off.addEventListener('click', () => {
+    let el = document.getElementById('lk-confirm');
+    if (!el) { off.insertAdjacentHTML('beforebegin', '<div class="field" id="lk-confirm" style="margin-top:0"><label for="lk-cur">Enter your PIN to turn it off</label><input class="in" type="password" inputmode="numeric" id="lk-cur" maxlength="8"></div>'); $('#lk-cur').focus(); return; }
+    hashPin($('#lk-cur').value, lockCfg.salt).then(h => { if (h === lockCfg.pinHash) { lockCfg = null; try { localStorage.removeItem(LS_LOCK); } catch (e) {} showToast('App lock is off'); renderSetup(); } else { buzz('warn'); showToast('That PIN isn’t right.'); } });
+  });
+}
+
 // ---------- reminders (Phase 3) ----------
 let showAllComing = false;
 function comingUp() {
   if (!calc) return '';
   const items = E.reminders(state, todayISO(), calc, 31);
   if (backupDue()) items.unshift({ kind: 'backup', date: todayISO(), days: 0, title: 'Back up your data' });
+  const ro = E.rolloverDue(state, todayISO()); if (ro) items.push({ kind: 'rollover', date: todayISO(), days: 0, title: 'Start the ' + shortMonth(ro.fundMonth) + ' cycle' });
+  for (const r of E.recurringStatus(state, todayISO())) if (!r.logged && !r.auto && daysUntil(r.date) <= 7) items.push({ kind: 'recurring', id: r.id, date: r.date, days: daysUntil(r.date), title: r.description, amount: +r.amount, due: r.due });
+  items.sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   const total = items.length; if (!showAllComing) items.splice(4);
   const li = items.map(it => {
     const n = it.days, hot = it.kind === 'bill' ? it.overdue || n <= 3 : it.kind === 'due' ? !it.covered && n <= 3 : n <= 1;
@@ -1353,6 +1566,8 @@ function comingUp() {
     let detail = '', action = '';
     if (it.kind === 'payday') { detail = `${wd(it.date)} · ${whenTxt}`; action = `<a class="mini" href="#payday" style="display:inline-grid;place-items:center;text-decoration:none;color:inherit">Checklist</a>`; }
     if (it.kind === 'due') detail = `${whole(it.amount)} · ${whenTxt} · ${it.payroll ? 'deducted from pay' : it.covered ? 'payment logged' : it.paid > 0 ? whole(it.paid) + ' logged so far' : 'not logged yet'}`;
+    if (it.kind === 'rollover') { detail = 'Payday’s here: move the plan on and update cash'; action = `<button class="mini" type="button" data-rollover="1">Start</button>`; }
+    if (it.kind === 'recurring') { detail = `${whole(it.amount)} · monthly · ${it.due ? (it.days < 0 ? 'was due ' + fmtDate(it.date, false) : 'due today') : whenTxt}`; action = it.due ? `<button class="mini" type="button" data-reclog="${esc(it.id)}">Log</button>` : ''; }
     if (it.kind === 'backup') { detail = pref.lastBackup ? `Last one ${fmtDate(pref.lastBackup, false)} · data lives only here` : 'Your data lives only on this phone'; action = `<button class="mini" type="button" data-backup="1">Back up</button>`; }
     if (it.kind === 'snapshot') { detail = `Statement balances for ${shortMonth(it.month)}`; action = `<button class="mini" type="button" data-snap="${esc(it.month)}">Record</button>`; }
     if (it.kind === 'bill') { detail = `${whole(it.amount)} · ${it.overdue ? '<b style="color:var(--bad)">' + whenTxt + '</b>' : whenTxt} `; action = `<button class="mini" type="button" data-billpaid="${esc(it.id)}">Mark paid</button>`; }
@@ -1365,7 +1580,9 @@ document.addEventListener('click', async e => {
   if (e.target.closest('#sts-info')) { pref.heroInfo = !pref.heroInfo; lsSet(LS_PREF, pref); const w = $('#sts-why'); if (w) w.hidden = !pref.heroInfo; e.target.closest('#sts-info').setAttribute('aria-expanded', !!pref.heroInfo); return; }
   if (e.target.closest('#cu-all')) { showAllComing = !showAllComing; render(); return; }
   const sn = e.target.closest('[data-snap]'); if (sn) { openSnapshot(sn.dataset.snap); return; }
-  if (e.target.closest('[data-backup]')) { backupNow(); return; }
+  if (e.target.closest('[data-backup]')) { canShareFiles() ? shareBackup() : backupNow(); return; }
+  if (e.target.closest('[data-rollover]')) { openRollover(); return; }
+  const rl = e.target.closest('[data-reclog]'); if (rl) { rl.disabled = true; const r = E.recurringStatus(state, todayISO()).find(x => x.id === rl.dataset.reclog); if (r) logRecurring(r).then(render).catch(() => { rl.disabled = false; }); return; }
   if (e.target.closest('[data-restore]')) { openRestore(); return; }
   const b = e.target.closest('[data-billpaid]'); if (!b) return;
   b.disabled = true;
@@ -1596,9 +1813,10 @@ function openTx(existing) {
     <div class="err" id="tx-err" hidden></div>
     <div class="two"><div class="field"><label for="tx-date">Date</label><input class="in" type="date" id="tx-date" value="${t.date}"></div>
       <div class="field"><span class="lbl">Essential?</span><label class="toggle" for="tx-ess"><span>Essential</span><input type="checkbox" id="tx-ess"${t.essential ? ' checked' : ''}></label></div></div>
-    <div class="field"><label for="tx-desc">Description</label><input class="in" id="tx-desc" value="${esc(t.description)}" placeholder="e.g. Supermarket" autocomplete="off"></div>
+    <div class="field"><label for="tx-desc">Description</label><input class="in" id="tx-desc" value="${esc(t.description)}" placeholder="Start typing for suggestions" autocomplete="off" list="tx-desc-list">
+      <datalist id="tx-desc-list">${descSuggestions().map(x => `<option value="${esc(x)}"></option>`).join('')}</datalist></div>
     <div class="field"><label for="tx-notes">Notes</label><textarea class="in" id="tx-notes">${esc(t.notes)}</textarea></div>
-    <div class="actions">${editing ? `<button class="btn danger" type="button" id="tx-del">Delete transaction</button>` : ''}<button class="btn ghost" type="button" id="tx-cancel">Cancel</button></div>
+    <div class="actions">${editing ? `<button class="btn" style="background:var(--surface);border:1px solid var(--line)" type="button" id="tx-repeat">Repeat monthly</button><button class="btn danger" type="button" id="tx-del">Delete transaction</button>` : ''}<button class="btn ghost" type="button" id="tx-cancel">Cancel</button></div>
   </form></div>`;
   const amt = $('#tx-amount');
   if (!editing) setTimeout(() => amt.focus(), 50);
@@ -1624,6 +1842,22 @@ function openTx(existing) {
   layer.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { t.paymentMethod = b.dataset.m; layer.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
   $('#tx-ess').addEventListener('change', () => { essentialTouched = true; });
   $('#tx-date').addEventListener('input', () => { dateTouched = true; });
+  // Picking a past description fills its category and payment method; otherwise a merchant rule may match.
+  const desc = $('#tx-desc');
+  const fromDesc = () => {
+    if (t.category) return;
+    const v = desc.value.trim().toLowerCase(); if (!v) return;
+    const past = state.transactions.filter(x => String(x.description || '').toLowerCase() === v && x.category).sort((a, b) => a.date < b.date ? 1 : -1)[0];
+    const cat = past ? past.category : E.matchRule(state.merchantRules, desc.value);
+    if (cat) { setCat(cat); if (past && !editing) { t.paymentMethod = past.paymentMethod; layer.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === past.paymentMethod)); } }
+  };
+  desc.addEventListener('change', fromDesc);
+  desc.addEventListener('input', () => { if (descSuggestions().some(x => x.toLowerCase() === desc.value.trim().toLowerCase())) fromDesc(); });
+  const rep = $('#tx-repeat'); if (rep) rep.addEventListener('click', async () => {
+    const day = +t.date.slice(8, 10);
+    const ok = await saveConfig(cfg => { cfg.recurring = cfg.recurring || []; cfg.recurring.push({ id: 'r' + uid8(), description: t.description || t.category, category: t.category, amount: +t.amount, paymentMethod: t.paymentMethod, essential: !!t.essential, day, auto: false, lastMonth: E.monthKey(t.date) }); });
+    if (ok) { close(); showToast('Repeats monthly on day ' + day + '. Manage it in Setup → Recurring.'); render(); }
+  });
   const close = () => { layer.innerHTML = ''; };
   $('#tx-cancel').addEventListener('click', close);
   $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') close(); });
@@ -1634,7 +1868,9 @@ function openTx(existing) {
     del.addEventListener('click', async () => {
       if (!armed) { armed = true; del.textContent = 'Tap again to delete'; return; }
       del.disabled = true;
-      try { await writeOp({ kind: 'tx-del', id: t.id }); if (mode !== 'cloud') {} close(); showToast('Deleted'); refreshAfterWrite(); }
+      const original = { ...existing };
+      try { await writeOp({ kind: 'tx-del', id: t.id }); close(); buzz('tap'); refreshAfterWrite();
+        showToast('Deleted ' + (original.description || original.category || 'transaction'), { label: 'Undo', fn: async () => { try { await writeOp({ kind: 'tx-set', tx: original }); buzz('success'); showToast('Restored'); refreshAfterWrite(); } catch (e) { showToast('Could not restore it. Add it again from +.'); } } }); }
       catch (e) { del.disabled = false; showErr('Could not delete. Check your connection and try again.'); }
     });
   }
@@ -1744,7 +1980,7 @@ function renderSetup() {
     <div class="actions"><button class="btn primary" type="button" id="ex-tx">Export transactions (.csv)</button><button class="btn danger" style="background:var(--surface-2);color:var(--ink)" type="button" id="ex-bal">Export balances (.csv)</button></div>
     <h3 style="font-size:15px;margin:18px 0 4px">Backup</h3>
     <p class="hint" style="margin:0">A backup file holds everything: setup, transactions, goals and check-ins. ${STANDALONE ? 'Your data lives only on this phone, so save a backup every week or two and keep a copy somewhere safe, such as Google Drive.' : 'Use it to move your data to the phone app.'}${pref.lastBackup ? ' Last backup: ' + fmtDate(pref.lastBackup) + '.' : ''}</p>
-    <div class="actions"><button class="btn primary" type="button" id="bk-save">Back up now (.json)</button>${mode === 'cloud' ? '' : '<button class="btn" style="background:var(--surface);border:1px solid var(--line)" type="button" id="bk-restore">Restore from a backup</button>'}</div>`;
+    <div class="actions">${canShareFiles() ? '<button class="btn primary" type="button" id="bk-share">Share backup (Google Drive, email…)</button>' : ''}<button class="btn ${canShareFiles() ? '' : 'primary'}" type="button" id="bk-save" ${canShareFiles() ? 'style="background:var(--surface);border:1px solid var(--line)"' : ''}>Save backup to this phone (.json)</button>${mode === 'cloud' ? '' : '<button class="btn" style="background:var(--surface);border:1px solid var(--line)" type="button" id="bk-restore">Restore from a backup</button>'}</div>`;
 
   v.innerHTML = `<div class="stack">
     ${sec('pay', 'Pay', pay)}
@@ -1756,10 +1992,12 @@ function renderSetup() {
     ${sec('debts', 'Debts (' + d.debts.length + ')', debts)}
     ${sec('bills', 'One-off bills (' + d.bills.length + ')', bills)}
     ${sec('sav', 'Savings accounts (' + d.savingsAccounts.length + ')', sav)}
+    ${sec('recur', 'Recurring (' + (d.recurring || []).length + ')', recurHtml(d))}
     ${sec('payroll', 'Payroll deductions (' + d.payrollDeductions.length + ')', pr)}
     ${sec('goals', 'Savings goals (' + (d.savingsGoals || []).length + ')', goalsHtml(d))}
     ${sec('rules', 'Merchant rules (' + (d.merchantRules || []).length + ')', rules)}
     ${sec('notify', 'Notifications and vibration', notifySetupHtml())}
+    ${sec('lock', 'App lock', lockSetupHtml())}
     ${sec('look', 'Appearance', `<p class="hint" style="margin:0 0 10px">Pick a colour theme. Dark mode follows your phone's setting.</p><div class="swatches">${THEMES.map(([k, label, a, b]) => `<button type="button" data-theme-pick="${k}" aria-pressed="${(pref.theme || 'harbour') === k}"><i style="background:radial-gradient(120% 140% at 100% 0%, ${b}, ${a} 62%)"></i>${label}</button>`).join('')}</div>`)}
     ${sec('export', 'Export and backup', exp)}
   </div><div id="savebar-slot"></div>`;
@@ -1778,6 +2016,8 @@ function renderSetup() {
   v.querySelectorAll('[data-rdel]').forEach(b => b.addEventListener('click', () => { readSetup(); setupDraft.merchantRules.splice(+b.dataset.rdel, 1); renderSetup(); showSavebar(); }));
   $('#ex-tx').addEventListener('click', () => exportFile('transactions'));
   $('#bk-save').addEventListener('click', backupNow);
+  const bks = $('#bk-share'); if (bks) bks.addEventListener('click', shareBackup);
+  wireLockSetup();
   const hp = $('#hp-on'); if (hp) hp.addEventListener('change', e => { e.stopPropagation(); pref.haptics = hp.checked; lsSet(LS_PREF, pref); if (hp.checked) buzz('tap'); });
   const nOn = $('#nt-on'); if (nOn) nOn.addEventListener('click', turnOnNotifications);
   const nOff = $('#nt-off'); if (nOff) nOff.addEventListener('click', turnOffNotifications);
@@ -1793,10 +2033,11 @@ function addRow(kind) {
   if (kind === 'debts') d.debts.push({ id: 'd' + uid8(), name: 'New debt', balance: 0, balanceAsOf: todayISO(), apr: 0, requiredPayment: 0, dueDay: 1, paymentSource: 'Take-home', isRevolving: false, originalAmount: null, startDate: null, endDate: null, notes: '' });
   if (kind === 'bills') d.bills.push({ id: 'b' + uid8(), name: 'New bill', amount: 0, dueDate: todayISO(), paid: false });
   if (kind === 'savingsAccounts') d.savingsAccounts.push({ id: 'a' + uid8(), name: 'New account', balance: 0, currency: 'JMD', accessible: true, notes: '' });
+  if (kind === 'recurring') { d.recurring = d.recurring || []; d.recurring.push({ id: 'r' + uid8(), description: 'New monthly item', category: '', amount: 0, paymentMethod: 'Credit Card', day: 1, auto: false, essential: false }); }
   if (kind === 'savingsGoals') { d.savingsGoals = d.savingsGoals || []; d.savingsGoals.push({ id: 'g' + uid8(), name: 'New goal', targetFrom: 'manual', savedFrom: 'manual', plannedFrom: 'manual', target: 0, savedSoFar: 0, plannedPerMonth: 0, targetDate: null }); }
   if (kind === 'merchantRules') { d.merchantRules = d.merchantRules || []; d.merchantRules.push({ keyword: '', category: '' }); }
   if (kind === 'payrollDeductions') d.payrollDeductions.push({ id: 'p' + uid8(), name: 'New deduction', monthlyAmount: 0, category: 'Other', deductedBeforeNet: true, notes: '' });
-  openSecs.add({ categories: 'cats', debts: 'debts', bills: 'bills', savingsAccounts: 'sav', payrollDeductions: 'payroll', merchantRules: 'rules', savingsGoals: 'goals' }[kind]);
+  openSecs.add({ categories: 'cats', debts: 'debts', bills: 'bills', savingsAccounts: 'sav', payrollDeductions: 'payroll', merchantRules: 'rules', savingsGoals: 'goals', recurring: 'recur' }[kind]);
 }
 function readSetup() {
   const d = setupDraft, s = d.settings;
@@ -1835,6 +2076,12 @@ function readSetup() {
     const ps = t('g-psrc-' + i); if (ps !== undefined) g.plannedFrom = ps; const pv = n('g-plan-' + i); if (pv !== undefined) g.plannedPerMonth = pv;
     const dt = t('g-date-' + i); if (dt !== undefined) g.targetDate = dt || null;
   });
+  (d.recurring || []).forEach((x, i) => {
+    const g = id => document.getElementById(id); if (!g('rc-desc-' + i)) return;
+    x.description = g('rc-desc-' + i).value.trim() || x.description; x.category = g('rc-cat-' + i).value; x.amount = parseFloat(g('rc-amt-' + i).value) || 0;
+    x.paymentMethod = g('rc-m-' + i).value; x.day = Math.min(Math.max(parseInt(g('rc-day-' + i).value, 10) || 1, 1), 31); x.auto = g('rc-auto-' + i).checked;
+    const c = allCategories().find(k => k.name === x.category); x.essential = !!(c && c.essential);
+  });
   (d.merchantRules || []).forEach((x, i) => { const kw = t('r-kw-' + i); if (kw !== undefined) x.keyword = kw.trim(); set(x, 'category', t('r-cat-' + i)); });
 }
 function dirty() { return setupDraft && JSON.stringify(setupDraft) !== JSON.stringify(config()); }
@@ -1869,7 +2116,13 @@ async function saveSetup() {
 
 // ---------- misc ----------
 let toastT;
-function showToast(msg) { if (/^(Could not|Some rows)/.test(msg)) buzz('warn'); let el = document.getElementById('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); } el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2600); }
+function showToast(msg, action) {
+  if (/^(Could not|Some rows)/.test(msg)) buzz('warn');
+  let el = document.getElementById('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); }
+  el.textContent = msg;
+  if (action) { const b = document.createElement('button'); b.type = 'button'; b.className = 'toast-act'; b.textContent = action.label; b.addEventListener('click', () => { el.hidden = true; action.fn(); }); el.appendChild(b); }
+  el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, action ? 6000 : 2600);
+}
 document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) { if (g.dataset.go === 'activity') filt = { q: '', cat: '__none', method: '' }; go(g.dataset.go); } });
 
 boot().then(() => { if (location.hash === '#add') { history.replaceState(null, '', '#home'); render(); openTx(null); } });

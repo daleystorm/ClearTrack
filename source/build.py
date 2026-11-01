@@ -24,7 +24,7 @@ os.makedirs(site, exist_ok=True)
 body = src.replace('/*ENGINE*/', engine).replace('/*STANDALONE*/false', 'true')
 title_m = re.match(r'\s*<title>.*?</title>\s*', body, re.S)
 body = body[title_m.end():] if title_m else body
-version = hashlib.sha1((body + 'v2-flat-icons').encode()).hexdigest()[:10]
+version = hashlib.sha1((body + open(__file__, encoding='utf-8').read()).encode()).hexdigest()[:10]  # changes when the page or the icons change
 
 head = f'''<!doctype html>
 <html lang="en">
@@ -33,8 +33,8 @@ head = f'''<!doctype html>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>ClearTrack</title>
 <meta name="description" content="Personal debt and spending tracker. Your data stays on this device.">
-<meta name="theme-color" content="#eef2ef" media="(prefers-color-scheme: light)">
-<meta name="theme-color" content="#0d1513" media="(prefers-color-scheme: dark)">
+<meta name="theme-color" content="#f1f3f7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0e1218" media="(prefers-color-scheme: dark)">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ClearTrack">
@@ -70,8 +70,8 @@ manifest = {
     "scope": "./",
     "display": "standalone",
     "orientation": "portrait",
-    "background_color": "#eef2ef",
-    "theme_color": "#0b6a4c",
+    "background_color": "#f1f3f7",
+    "theme_color": "#14305a",
     "categories": ["finance", "productivity"],
     "icons": [
         {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
@@ -123,8 +123,11 @@ function dueNotifications(data, today, sent) {
     if (it.kind === 'due' && n >= 0 && n <= 3 && !it.covered && !it.payroll) note = { title: it.title + ' due ' + when(n), body: money(data.sym, it.amount) + ' · ' + nice(it.date) + ' · not logged yet', route: 'home' };
     if (it.kind === 'payday' && (n === 0 || n === 1)) note = { title: n === 0 ? 'Payday today' : 'Payday tomorrow', body: 'Work through the payday checklist before sending any extra to debt.', route: 'payday' };
     if (it.kind === 'snapshot') note = { title: 'Record month-end balances', body: 'Enter your statement balances' + (it.label ? ' for ' + it.label : '') + ' to keep your trend line going.', route: 'debts' };
+    if (it.kind === 'budget') note = { title: it.title + (it.level === 'over' ? ' is over budget' : ' is at ' + Math.round(it.amount / it.budget * 100) + '% of budget'), body: money(data.sym, it.amount) + ' spent of ' + money(data.sym, it.budget) + ' this month.', route: 'plan' };
+    if (it.kind === 'recurring' && n === 0) note = { title: it.title + ' due today', body: money(data.sym, it.amount) + ' · monthly. Tap Log in ClearTrack once it’s paid.', route: 'home' };
+    if (it.kind === 'rollover') note = { title: 'New pay cycle', body: 'Move your plan to ' + it.label + ' and update cash on hand. It takes one tap in ClearTrack.', route: 'home' };
     if (!note) continue;
-    const key = it.key + '@' + today; if (sent[key]) continue;
+    const key = it.once ? it.key : it.key + '@' + today; if (sent[key]) continue;
     out.push({ ...note, tag: it.key, key });
   }
   if (data.hasData && (!data.lastBackup || days(data.lastBackup, today) >= 14)) {
@@ -162,25 +165,37 @@ self.addEventListener('notificationclick', e => {
 '''.replace('__VERSION__', version)
 open(os.path.join(site, 'sw.js'), 'w').write(sw)
 
-# Icons: a falling balance line ending at zero, on the app's sea-green.
+# Icons: logo B — a "C" for ClearTrack completed by a gold tick, on deep harbour blue.
+NAVY, BLUE, GOLD, WHITE = (20, 48, 90, 255), (29, 88, 168, 255), (242, 181, 68, 255), (255, 255, 255, 255)
+def draw_mark(d, ox, oy, size, c_col=WHITE, tick_col=GOLD):
+    u = lambda v: v * size
+    cx, cy, r, w = ox + u(0.5), oy + u(0.5), u(0.286), u(0.095)
+    d.arc([cx - r, cy - r, cx + r, cy + r], start=50, end=310, fill=c_col, width=int(w))
+    import math
+    for ang in (50, 310):  # round caps on the C
+        x = cx + r * math.cos(math.radians(ang)) - 0.0; y = cy + r * math.sin(math.radians(ang))
+        rr = w / 2; xr = cx + (r - w / 2) * math.cos(math.radians(ang)); yr = cy + (r - w / 2) * math.sin(math.radians(ang))
+        d.ellipse([xr - rr, yr - rr, xr + rr, yr + rr], fill=c_col)
+    pts = [(ox + u(0.381), oy + u(0.5)), (ox + u(0.5), oy + u(0.619)), (ox + u(0.762), oy + u(0.333))]
+    tw = int(u(0.083)); d.line(pts, fill=tick_col, width=tw, joint='curve')
+    for x, y in (pts[0], pts[-1]): d.ellipse([x - tw / 2, y - tw / 2, x + tw / 2, y + tw / 2], fill=tick_col)
+def background(d, W, rounded):
+    from PIL import ImageFilter
+    if rounded: d.rounded_rectangle([0, 0, W - 1, W - 1], radius=int(W * 0.23), fill=NAVY)
+    else: d.rectangle([0, 0, W, W], fill=NAVY)
+    # one soft lighter glow towards the top-right, blurred so it has no visible steps
+    layer = Image.new('RGBA', (W, W), (0, 0, 0, 0)); rr = W * 0.9
+    ImageDraw.Draw(layer).ellipse([W - rr * 0.55, -rr * 0.6, W + rr * 0.9, rr * 0.75], fill=BLUE[:3] + (190,))
+    yield layer.filter(ImageFilter.GaussianBlur(W * 0.16))
 def icon(size, maskable=False):
-    s = 4  # supersample
-    W = size * s
-    im = Image.new('RGBA', (W, W), (0, 0, 0, 0))
+    s = 4; W = size * s
+    im = Image.new('RGBA', (W, W), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    for layer in background(d, W, not maskable): im.alpha_composite(layer)
+    if not maskable:  # keep the glow inside the rounded square
+        mask = Image.new('L', (W, W), 0); ImageDraw.Draw(mask).rounded_rectangle([0, 0, W - 1, W - 1], radius=int(W * 0.23), fill=255); im.putalpha(mask)
     d = ImageDraw.Draw(im)
-    green = (11, 106, 76, 255)
-    if maskable:
-        d.rectangle([0, 0, W, W], fill=green); pad = W * 0.22
-    else:
-        d.rounded_rectangle([0, 0, W - 1, W - 1], radius=int(W * 0.23), fill=green); pad = W * 0.2
-    x0, x1, y0, y1 = pad, W - pad, pad + W * 0.04, W - pad
-    pts = [(x0, y0), (x0 + (x1 - x0) * 0.3, y0 + (y1 - y0) * 0.22), (x0 + (x1 - x0) * 0.55, y0 + (y1 - y0) * 0.55), (x0 + (x1 - x0) * 0.78, y0 + (y1 - y0) * 0.86), (x1, y1)]
-    lw = int(W * 0.085)
-    d.line([(x0, y1), (x1, y1)], fill=(255, 255, 255, 90), width=int(lw * 0.45))
-    d.line(pts, fill=(255, 255, 255, 255), width=lw, joint='curve')
-    for p in pts[:1]:
-        r = lw * 0.5; d.ellipse([p[0] - r, p[1] - r, p[0] + r, p[1] + r], fill=(255, 255, 255, 255))
-    r = lw * 0.95; d.ellipse([x1 - r, y1 - r, x1 + r, y1 + r], fill=(239, 176, 76, 255), outline=(255, 255, 255, 255), width=int(lw * 0.35))
+    k = 0.66 if maskable else 0.86
+    draw_mark(d, W * (1 - k) / 2, W * (1 - k) / 2, W * k)
     return im.resize((size, size), Image.LANCZOS)
 
 icon(192).save(os.path.join(site, 'icon-192.png'))
@@ -188,12 +203,8 @@ icon(512).save(os.path.join(site, 'icon-512.png'))
 icon(512, True).save(os.path.join(site, 'maskable-512.png'))
 
 def badge(size=96):
-    W = size * 4; im = Image.new('RGBA', (W, W), (0, 0, 0, 0)); d = ImageDraw.Draw(im); lw = int(W * 0.12)
-    x0, x1, y0, y1 = W * 0.16, W * 0.84, W * 0.18, W * 0.8
-    pts = [(x0, y0), (x0 + (x1 - x0) * 0.3, y0 + (y1 - y0) * 0.22), (x0 + (x1 - x0) * 0.55, y0 + (y1 - y0) * 0.55), (x0 + (x1 - x0) * 0.78, y0 + (y1 - y0) * 0.86), (x1, y1)]
-    d.line(pts, fill=(255, 255, 255, 255), width=lw, joint='curve')
-    r = lw * 0.5; d.ellipse([x0 - r, y0 - r, x0 + r, y0 + r], fill=(255, 255, 255, 255))
-    r = lw * 0.95; d.ellipse([x1 - r, y1 - r, x1 + r, y1 + r], fill=(255, 255, 255, 255))
+    W = size * 4; im = Image.new('RGBA', (W, W), (0, 0, 0, 0)); d = ImageDraw.Draw(im)
+    draw_mark(d, W * 0.04, W * 0.04, W * 0.92, WHITE, WHITE)
     return im.resize((size, size), Image.LANCZOS)
 badge().save(os.path.join(site, 'badge-96.png'))
 

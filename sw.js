@@ -1,5 +1,5 @@
 // ClearTrack service worker: offline app shell, plus reminder notifications.
-const CACHE = 'cleartrack-3ce1deacf0';
+const CACHE = 'cleartrack-394a2942f1';
 const DATA = 'cleartrack-data';   // written by the app: reminders.json; kept by this worker: notified.json
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
@@ -36,8 +36,11 @@ function dueNotifications(data, today, sent) {
     if (it.kind === 'due' && n >= 0 && n <= 3 && !it.covered && !it.payroll) note = { title: it.title + ' due ' + when(n), body: money(data.sym, it.amount) + ' · ' + nice(it.date) + ' · not logged yet', route: 'home' };
     if (it.kind === 'payday' && (n === 0 || n === 1)) note = { title: n === 0 ? 'Payday today' : 'Payday tomorrow', body: 'Work through the payday checklist before sending any extra to debt.', route: 'payday' };
     if (it.kind === 'snapshot') note = { title: 'Record month-end balances', body: 'Enter your statement balances' + (it.label ? ' for ' + it.label : '') + ' to keep your trend line going.', route: 'debts' };
+    if (it.kind === 'budget') note = { title: it.title + (it.level === 'over' ? ' is over budget' : ' is at ' + Math.round(it.amount / it.budget * 100) + '% of budget'), body: money(data.sym, it.amount) + ' spent of ' + money(data.sym, it.budget) + ' this month.', route: 'plan' };
+    if (it.kind === 'recurring' && n === 0) note = { title: it.title + ' due today', body: money(data.sym, it.amount) + ' · monthly. Tap Log in ClearTrack once it’s paid.', route: 'home' };
+    if (it.kind === 'rollover') note = { title: 'New pay cycle', body: 'Move your plan to ' + it.label + ' and update cash on hand. It takes one tap in ClearTrack.', route: 'home' };
     if (!note) continue;
-    const key = it.key + '@' + today; if (sent[key]) continue;
+    const key = it.once ? it.key : it.key + '@' + today; if (sent[key]) continue;
     out.push({ ...note, tag: it.key, key });
   }
   if (data.hasData && (!data.lastBackup || days(data.lastBackup, today) >= 14)) {

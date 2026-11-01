@@ -587,6 +587,33 @@
     return { recorded: pts, projected: lastRec ? proj.filter(p => p.date > lastRec) : proj, series };
   }
 
+  // ---------- refinements: budget alerts, recurring transactions, month roll-over ----------
+  function budgetAlerts(state, today) {
+    // Categories at 80% or more of their monthly budget this calendar month (all payment methods).
+    const mk = monthKey(today);
+    return state.categories.filter(c => +c.monthlyBudget > 0 && !state.debts.some(d => interestCat(d) === c.name)).map(c => {
+      const actual = actualFor(state, c.name, mk), ratio = actual / +c.monthlyBudget;
+      return { name: c.name, budget: +c.monthlyBudget, actual, ratio, level: ratio > 1 ? 'over' : ratio >= 0.8 ? 'near' : null };
+    }).filter(x => x.level).sort((a, b) => b.ratio - a.ratio);
+  }
+  function recurringStatus(state, today) {
+    // Monthly items: due on their day; logged once a transaction for them exists this month.
+    const { y, m } = ymd(today), mk = monthKey(today);
+    return (state.recurring || []).filter(r => r.active !== false && +r.amount > 0).map(r => {
+      const date = dateCapped(y, m, +r.day || 1);
+      const logged = r.lastMonth === mk || state.transactions.some(t => t.date && monthKey(t.date) === mk && t.category === r.category &&
+        Math.round(+t.amount * 100) === Math.round(+r.amount * 100) && String(t.description || '').toLowerCase() === String(r.description || '').toLowerCase());
+      return { ...r, date, logged, due: !logged && date <= today };
+    });
+  }
+  function rolloverDue(state, today) {
+    // After a payday, the plan should move to the month that pay funds.
+    const s = state.settings, pd = cyclePayday(state, today);
+    if (!pd || pd > today) return null;
+    const fund = s.payFundsNextMonth !== false ? edate(monthStart(pd), 1) : monthStart(pd);
+    return (s.planningMonth || '') >= fund ? null : { payday: pd, fundMonth: fund };
+  }
+
   // ---------- CSV export (N4) ----------
   function csvCell(v) { if (v == null) return ''; const s = String(v); return /[",\n\r]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s; }
   function toCSV(rows) { return rows.map(r => r.map(csvCell).join(',')).join('\r\n') + '\r\n'; }
@@ -613,7 +640,7 @@
     return toCSV(rows);
   }
 
-  const api = { compute, monthlyPlan, monthFlows, compareMonths, sensitivity, savings, liveSavingsAccounts, emergencyAccount, payrollSavingsAmount, weekOfMonth, cyclePayday, paydaySteps, paydayChecklist, checkInStats, followThrough, checkInDefaults, snapshotSeries, snapshotDue, trend, monthEnd,
+  const api = { compute, monthlyPlan, monthFlows, compareMonths, sensitivity, savings, budgetAlerts, recurringStatus, rolloverDue, liveSavingsAccounts, emergencyAccount, payrollSavingsAmount, weekOfMonth, cyclePayday, paydaySteps, paydayChecklist, checkInStats, followThrough, checkInDefaults, snapshotSeries, snapshotDue, trend, monthEnd,
     parseStatementDate, parseAmount, matchRule, importPreview, splitDelimited, reminders, transactionsCSV, balancesCSV, flowType, cardImpact, liveBalance, liveCash, nextPayday, paydayAfterNext, lastPayday, nextDueDate,
     projectPayoff, loanProgress, cardStatus, priorities, periodsPerMonth, paymentCat, interestCat, monthKey, monthStart, edate, addDays };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CTEngine = api;
