@@ -1,5 +1,5 @@
 // ClearTrack service worker: the app works offline after the first visit.
-const CACHE = 'cleartrack-5b978262ae';
+const CACHE = 'cleartrack-2746cafcdf';
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './maskable-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener('activate', e => {

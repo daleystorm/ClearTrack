@@ -26,45 +26,57 @@ img { max-width: 100% }
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600;700&display=swap">
 <style>
-/* Layout: one phone column; hero figure, then stacked cards; fixed tab bar with a floating add button. */
+/* Layout: one phone column; a coloured summary card on top, compact cards and fold-outs below; fixed tab bar + add button.
+   Colour: cool slate neutrals, one theme accent (picked in Setup), a marigold highlight, and a colour per section. */
 :root {
-  --bg: #eef2ef;          /* green-tinted paper */
-  --surface: #ffffff;
-  --surface-2: #e3e9e5;
-  --ink: #12211d;
-  --muted: #5a6a64;
-  --line: #d3dcd7;
-  --accent: #0b6a4c;      /* deep sea-green */
-  --accent-ink: #ffffff;
-  --accent-soft: #d5ebe1;
-  --good: #1d7f47; --good-soft: #dbf0e2;
-  --warn: #a8640a; --warn-soft: #f8e7c8;
-  --bad: #b5321c;  --bad-soft: #f7ddd7;
-  --shadow: 0 1px 2px rgba(18,33,29,.06), 0 6px 18px rgba(18,33,29,.06);
+  --bg: #f1f3f7; --surface: #ffffff; --surface-2: #e8ebf1; --ink: #141b26; --muted: #5b6474; --line: #d9dee6;
+  --accent-ink: #ffffff; --hl: #f2b544; --hero-ink: #ffffff;
+  --sec-spend: #d4553a; --sec-plan: #0f8577; --sec-debt: #5b4bd0; --sec-setup: #5b6474; --sec-home: var(--accent);
+  --good: #1d7f47; --good-soft: #dbf0e2; --warn: #a8640a; --warn-soft: #f8e7c8; --bad: #b5321c; --bad-soft: #f7ddd7;
+  --shadow: 0 1px 2px rgba(20,27,38,.05), 0 6px 18px rgba(20,27,38,.06);
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --accent: #1d58a8; --accent-soft: #dfe9f7; --hero1: #14305a; --hero2: #1d58a8;
   --f-display: "Unbounded", "Arial Black", system-ui, sans-serif;
   --f-ui: "Onest", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --r: 16px;
-  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4;
+  --r: 18px;
 }
-@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
-  --bg: #0d1513; --surface: #16211e; --surface-2: #1f2d29; --ink: #e5eeea; --muted: #93a59e; --line: #2a3a35;
-  --accent: #4fc496; --accent-ink: #062117; --accent-soft: #173a2e;
+:root[data-accent="harbour"] { --accent: #1d58a8; --accent-soft: #dfe9f7; --hero1: #14305a; --hero2: #1d58a8; }
+:root[data-accent="seagreen"] { --accent: #0b6a4c; --accent-soft: #d5ebe1; --hero1: #0a3d2e; --hero2: #0b6a4c; }
+:root[data-accent="plum"] { --accent: #7b3f9e; --accent-soft: #eedff5; --hero1: #3c1c55; --hero2: #7b3f9e; }
+:root[data-accent="graphite"] { --accent: #2f3d52; --accent-soft: #e1e6ee; --hero1: #1b2433; --hero2: #3a4a63; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+  --bg: #0e1218; --surface: #171d26; --surface-2: #212937; --ink: #e6ebf2; --muted: #95a0b2; --line: #2a3342;
+  --accent-ink: #0e1218; --hl: #f5c463; --hero-ink: #ffffff;
+  --sec-spend: #ff8a6b; --sec-plan: #42c7b5; --sec-debt: #a99bff; --sec-setup: #95a0b2; --sec-home: var(--accent);
   --good: #5ccf8a; --good-soft: #163525; --warn: #f0b04c; --warn-soft: #3a2b12; --bad: #ff8a72; --bad-soft: #3f1d16;
-  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181 } }
+  --shadow: 0 1px 2px rgba(0,0,0,.35);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; color-scheme: dark;
+  --accent: #7fb0f0; --accent-soft: #18294a; --hero1: #10223f; --hero2: #1a3f78; }
+  :root:not([data-theme="light"])[data-accent="harbour"] { --accent: #7fb0f0; --accent-soft: #18294a; --hero1: #10223f; --hero2: #1a3f78; }
+  :root:not([data-theme="light"])[data-accent="seagreen"] { --accent: #4fc496; --accent-soft: #15372b; --hero1: #0c2a20; --hero2: #0f5039; }
+  :root:not([data-theme="light"])[data-accent="plum"] { --accent: #c99be6; --accent-soft: #2f1d3d; --hero1: #2a1440; --hero2: #5a2d78; }
+  :root:not([data-theme="light"])[data-accent="graphite"] { --accent: #a9b8cf; --accent-soft: #222b38; --hero1: #151b25; --hero2: #2b3647; }
+}
 :root[data-theme="dark"] {
-  --bg: #0d1513; --surface: #16211e; --surface-2: #1f2d29; --ink: #e5eeea; --muted: #93a59e; --line: #2a3a35;
-  --accent: #4fc496; --accent-ink: #062117; --accent-soft: #173a2e;
+  --bg: #0e1218; --surface: #171d26; --surface-2: #212937; --ink: #e6ebf2; --muted: #95a0b2; --line: #2a3342;
+  --accent-ink: #0e1218; --hl: #f5c463; --hero-ink: #ffffff;
+  --sec-spend: #ff8a6b; --sec-plan: #42c7b5; --sec-debt: #a99bff; --sec-setup: #95a0b2; --sec-home: var(--accent);
   --good: #5ccf8a; --good-soft: #163525; --warn: #f0b04c; --warn-soft: #3a2b12; --bad: #ff8a72; --bad-soft: #3f1d16;
-  --shadow: 0 1px 2px rgba(0,0,0,.3); color-scheme: dark;
-  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181 }
+  --shadow: 0 1px 2px rgba(0,0,0,.35);
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; color-scheme: dark;
+  --accent: #7fb0f0; --accent-soft: #18294a; --hero1: #10223f; --hero2: #1a3f78; }
+:root[data-theme="dark"][data-accent="harbour"] { --accent: #7fb0f0; --accent-soft: #18294a; --hero1: #10223f; --hero2: #1a3f78; }
+:root[data-theme="dark"][data-accent="seagreen"] { --accent: #4fc496; --accent-soft: #15372b; --hero1: #0c2a20; --hero2: #0f5039; }
+:root[data-theme="dark"][data-accent="plum"] { --accent: #c99be6; --accent-soft: #2f1d3d; --hero1: #2a1440; --hero2: #5a2d78; }
+:root[data-theme="dark"][data-accent="graphite"] { --accent: #a9b8cf; --accent-soft: #222b38; --hero1: #151b25; --hero2: #2b3647; }
 
 * { box-sizing: border-box }
 html, body { min-height: 100% }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.45;
   font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
-.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 140px }
+.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 170px }
 h1, h2, h3 { margin: 0; text-wrap: balance }
 button, input, select, textarea { font: inherit; color: inherit }
 button { cursor: pointer }
@@ -81,11 +93,21 @@ button { cursor: pointer }
 .chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; font-weight: 500; white-space: nowrap }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent) }
 
-/* hero */
-.hero { padding: 18px 2px 22px }
-.hero .money { font-size: clamp(38px, 12vw, 56px); line-height: 1.05; margin-top: 6px; overflow-wrap: anywhere }
-.hero .cur { font-size: .45em; vertical-align: .55em; margin-right: 4px; color: var(--muted); font-weight: 500 }
-.hero p { margin: 8px 0 0; color: var(--muted) }
+/* hero: the coloured summary card that opens each screen */
+.hero { position: relative; overflow: hidden; margin-bottom: 14px; padding: 18px 18px 18px; border-radius: 22px; color: var(--hero-ink);
+  background: radial-gradient(120% 140% at 100% 0%, var(--hero2) 0%, var(--hero1) 62%); box-shadow: 0 10px 28px rgba(15,25,45,.18) }
+.hero::after { content: ""; position: absolute; right: -40px; bottom: -60px; width: 180px; height: 180px; border-radius: 50%; border: 28px solid rgba(255,255,255,.06); pointer-events: none }
+.hero .lbl { color: rgba(255,255,255,.78) }
+.hero .money { font-size: clamp(34px, 11vw, 52px); line-height: 1.05; margin-top: 6px; overflow-wrap: anywhere }
+.hero .cur { font-size: .42em; vertical-align: .6em; margin-right: 4px; color: var(--hl); font-weight: 600 }
+.hero p { margin: 8px 0 0; color: rgba(255,255,255,.8); font-size: 14px; position: relative; z-index: 1 }
+.hero h1 { color: var(--hero-ink) }
+.hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; position: relative; z-index: 1 }
+.hero-stats a, .hero-stats div { display: block; text-decoration: none; color: inherit; background: rgba(255,255,255,.1); border-radius: 12px; padding: 9px 10px; min-width: 0 }
+.hero-stats span { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.72); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.hero-stats b { display: block; font-family: var(--f-display); font-weight: 600; font-size: clamp(12.5px, 3.7vw, 15px); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.hero-stats b.hl { color: var(--hl) }
+.hero .pill { background: rgba(255,255,255,.16); color: #fff }
 
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px }
 .stack { display: grid; gap: 12px }
@@ -134,10 +156,13 @@ details.calc summary::-webkit-details-marker { display: none }
   padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); padding-bottom: env(safe-area-inset-bottom, 0px) }
 .tabs nav { max-width: 560px; margin: 0 auto; display: grid; grid-template-columns: repeat(5, 1fr) }
 .tabs a { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 9px 0 10px; color: var(--muted); text-decoration: none; font-size: 11.5px; font-weight: 600; min-height: 56px; justify-content: center }
-.tabs a[aria-current="page"] { color: var(--accent) }
-.tabs svg { width: 22px; height: 22px }
+.tabs a[data-tab="home"] { --tc: var(--sec-home) } .tabs a[data-tab="activity"] { --tc: var(--sec-spend) } .tabs a[data-tab="plan"] { --tc: var(--sec-plan) }
+.tabs a[data-tab="debts"] { --tc: var(--sec-debt) } .tabs a[data-tab="setup"] { --tc: var(--sec-setup) }
+.tabs a[aria-current="page"] { color: var(--tc) }
+.tabs svg { width: 22px; height: 22px; padding: 0; border-radius: 999px }
+.tabs a[aria-current="page"] svg { background: color-mix(in srgb, var(--tc) 16%, transparent); width: 46px; padding: 0 12px; box-sizing: content-box; margin: 0 -12px }
 .fab { position: fixed; z-index: 21; right: max(18px, calc(env(safe-area-inset-right, 0px) + 18px)); bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
-  width: 64px; height: 64px; border-radius: 22px; border: 0; background: var(--accent); color: var(--accent-ink); box-shadow: 0 8px 22px rgba(11,106,76,.35);
+  width: 64px; height: 64px; border-radius: 22px; border: 0; background: var(--hl); color: #1d1606; box-shadow: 0 8px 22px rgba(15,25,45,.28);
   display: grid; place-items: center }
 .fab svg { width: 30px; height: 30px }
 @media (min-width: 600px) { .fab { right: calc(50% - 280px + 18px) } }
@@ -210,7 +235,9 @@ details.sec[open] > summary::after { content: "–" }
 /* phase 2 */
 .navseg { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface-2); padding: 4px; border-radius: 14px; margin-bottom: 14px }
 .navseg a { min-height: 42px; display: grid; place-items: center; border-radius: 10px; text-decoration: none; color: var(--muted); font-weight: 600; font-size: 14px }
-.navseg a[aria-current="page"] { background: var(--surface); color: var(--ink); box-shadow: var(--shadow) }
+.navseg a[aria-current="page"] { background: var(--surface); color: var(--sec, var(--ink)); box-shadow: var(--shadow) }
+body[data-sec="activity"] { --sec: var(--sec-spend) } body[data-sec="plan"] { --sec: var(--sec-plan) } body[data-sec="debts"] { --sec: var(--sec-debt) } body[data-sec="setup"] { --sec: var(--sec-setup) } body[data-sec="home"] { --sec: var(--accent) }
+.ghead h2, .month-h h2 { color: var(--sec, var(--ink)) }
 .stepper { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 14px }
 .stepper button { width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); font-size: 20px; line-height: 1 }
 .stepper h1 { font-family: var(--f-display); font-size: 20px; font-weight: 600 }
@@ -272,6 +299,33 @@ details.sec[open] > summary::after { content: "–" }
 .rule .in { min-height: 40px; padding: 6px 10px }
 .rule .ord { display: flex; gap: 2px }
 .rule .ord button { width: 32px; height: 40px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); font-size: 14px }
+.swatches { display: grid; grid-template-columns: 1fr 1fr; gap: 8px }
+.swatches button { display: flex; align-items: center; gap: 10px; min-height: 52px; padding: 8px 10px; border-radius: 14px; border: 2px solid var(--line); background: var(--surface); font-weight: 600; font-size: 14px; text-align: left }
+.swatches button[aria-pressed="true"] { border-color: var(--accent) }
+.swatches i { width: 30px; height: 30px; border-radius: 9px; flex: none }
+.tile { display: block; text-decoration: none; color: inherit; padding: 14px }
+.tile .money.m { font-size: 19px; margin: 4px 0 2px }
+.tile .neg { color: var(--bad) }
+details.more > summary { color: var(--muted) }
+.fold { background: var(--surface); border-radius: var(--r); box-shadow: var(--shadow) }
+.fold > summary { list-style: none; cursor: pointer; padding: 14px 16px; position: relative }
+.fold > summary::-webkit-details-marker { display: none }
+.fold > summary h2 { font-size: 15px; color: var(--sec, var(--ink)); display: flex; align-items: center; gap: 8px }
+.fold > summary h2::before { content: ""; width: 8px; height: 8px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted); transform: rotate(-45deg); transition: transform .15s; flex: none }
+.fold[open] > summary h2::before { transform: rotate(45deg) }
+.fold-body { padding: 0 16px 8px }
+.fold-body > .card { box-shadow: none; padding: 0 }
+.fold.debt .money.m { font-size: 20px }
+.step { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line) }
+.step:first-of-type { border-top: 0 }
+.step .main { flex: 1; min-width: 0 }
+.step .t { font-weight: 600 }
+.step .s { font-size: 13px; color: var(--muted) }
+.step.done .t { color: var(--muted); text-decoration: line-through; text-decoration-color: var(--line) }
+.step.skipped { opacity: .6 }
+.tick-btn { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: transparent; display: grid; place-items: center }
+.tick-btn svg { width: 22px; height: 22px }
+.tick-btn[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff }
 @media (max-width: 360px) { .grid2, .two, .three { grid-template-columns: 1fr } }
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .22s ease-out } @keyframes up { from { transform: translateY(24px); opacity: .6 } } }
 </style>
@@ -938,6 +992,9 @@ let db = null, userId = null, stateRef = null, txCol = null;
 let txServer = [];           // transactions from the store
 let outbox = lsGet(LS_OUT, []);
 let pref = lsGet(LS_PREF, { method: 'Credit Card' });
+const THEMES = [['harbour', 'Harbour', '#14305a', '#1d58a8'], ['seagreen', 'Sea green', '#0a3d2e', '#0b6a4c'], ['plum', 'Plum', '#3c1c55', '#7b3f9e'], ['graphite', 'Graphite', '#1b2433', '#3a4a63']];
+function applyTheme() { try { document.documentElement.dataset.accent = pref.theme || 'harbour'; } catch (e) {} }
+applyTheme();
 let syncNote = '';
 
 const BLANK = {
@@ -1089,6 +1146,39 @@ async function firstRun(isOwner) {
 function route() { const h = (location.hash || '#home').slice(1); return ['home', 'activity', 'plan', 'savings', 'payday', 'weekly', 'debts', 'payoff', 'setup'].includes(h) ? h : 'home'; }
 window.addEventListener('hashchange', () => { if (location.hash === '#add') { history.replaceState(null, '', '#home'); render(); openTx(null); return; } setupDraft = null; render(); window.scrollTo(0, 0); });
 
+// ---------- navigation & the Android back button ----------
+// Moving between screens replaces the history entry instead of adding one, so Back never replays old taps.
+// Leaving Home adds exactly one entry, so Back from any screen returns Home, and Back on Home leaves the app.
+// An open sheet (Quick Add, import, check-in…) adds one entry of its own, so Back closes the sheet first.
+function go(to) {
+  to = String(to || 'home').replace(/^#/, '');
+  if (!STANDALONE) { location.hash = to; return; }
+  const from = route();
+  if (from === to) { window.scrollTo(0, 0); return; }
+  try {
+    if (from === 'home' && to !== 'home') history.pushState({ screen: to }, '', '#' + to);
+    else if (to === 'home' && history.state && history.state.screen) { history.back(); return; }
+    else history.replaceState(history.state, '', '#' + to);
+  } catch (e) { location.hash = to; return; }
+  setupDraft = null; render(); window.scrollTo(0, 0);
+}
+let sheetPushed = false, closingByPop = false;
+if (STANDALONE) {
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]'); if (!a || e.defaultPrevented) return;
+    e.preventDefault(); go(a.getAttribute('href'));
+  });
+  new MutationObserver(() => {
+    const open = !!$('#layer').firstChild;
+    if (open && !sheetPushed) { sheetPushed = true; try { history.pushState({ sheet: true, screen: history.state && history.state.screen }, '', location.hash || '#home'); } catch (e) {} }
+    else if (!open && sheetPushed) { sheetPushed = false; if (!closingByPop) { try { history.back(); } catch (e) {} } closingByPop = false; }
+  }).observe(document.getElementById('layer'), { childList: true });
+  window.addEventListener('popstate', () => {
+    if (sheetPushed) { closingByPop = true; $('#layer').innerHTML = ''; return; }
+    setupDraft = null; render(); window.scrollTo(0, 0);
+  });
+}
+
 // ---------- render ----------
 let calc = null;
 function render() {
@@ -1098,6 +1188,7 @@ function render() {
   const r = route();
   const tab = r === 'payoff' ? 'debts' : ['savings', 'payday', 'weekly'].includes(r) ? 'plan' : r;
   document.querySelectorAll('.tabs a').forEach(a => a.setAttribute('aria-current', a.dataset.tab === tab ? 'page' : 'false'));
+  document.body.dataset.sec = tab;
   if (calc) {
     const n = daysUntil(calc.nextPayday);
     $('#paychip-t').textContent = 'Payday ' + wd(calc.nextPayday) + ' ' + fmtDate(calc.nextPayday, false) + ' · ' + (n === 0 ? 'today' : n === 1 ? 'tomorrow' : n + ' days');
@@ -1137,46 +1228,42 @@ function renderHome() {
       <p class="small muted" style="margin:10px 0 0">${card.room > 0 ? whole(card.room) + ' of room before the hard ceiling.' : 'No room left. Stop using the card.'}</p>
     </section>`;
   }
-  const due = c.debts.filter(d => d.nextDue && d.liveBalance > 0).sort((a, b) => a.nextDue < b.nextDue ? -1 : 1).slice(0, 3);
-  const dueHtml = due.map(d => {
-    const n = daysUntil(d.nextDue);
-    return `<li><div class="main"><div class="t">${esc(d.name)}</div><div class="s">${wd(d.nextDue)} ${fmtDate(d.nextDue)} · ${n === 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days'}${d.paymentSource === 'Payroll' ? ' · from payroll' : ''}</div></div><div class="amt">${whole(d.requiredPayment)}</div></li>`;
-  }).join('');
   const p = c.payoff, ins = c.insight;
+  const sv = (state.savingsAccounts || []).length ? E.savings(state, todayISO(), c) : null;
+  const ft = E.followThrough(state, todayISO());
   const insight = p.debtFree && ins.monthsSaved != null
     ? `<div class="insight">Another <b>${whole(ins.step)}</b> a month: debt-free <b>${ins.monthsSaved} month${ins.monthsSaved === 1 ? '' : 's'} sooner</b> and <b>${whole(ins.interestSaved)}</b> less interest.</div>` : '';
-  const debtFree = c.debts.length ? `<section class="card">
-      <div class="row"><h2>Debt-free</h2><a class="small" href="#payoff" style="color:var(--accent);font-weight:600;text-decoration:none">Payoff plan →</a></div>
-      <p class="small muted" style="margin:2px 0 0">${s.payoffMethod} · ${whole(s.monthlyExtraPayment)} extra a month</p>
-      ${p.debtFree
-        ? `<span class="money m">${MON[+p.date.slice(5, 7) - 1]} ${p.date.slice(0, 4)}</span><p class="small muted" style="margin:4px 0 0">${p.months} months · ${whole(p.totalInterest)} interest along the way · ${whole(c.totalDebt)} owed today</p>`
-        : `<span class="money m">Not within 8 years</span><p class="small muted" style="margin:4px 0 0">Raise the monthly extra payment in Setup.</p>`}
-      ${sparkline(p.rows)}
-      ${insight}
-    </section>` : '';
-  const cashTile = `<section class="card"><div class="lbl">Cash on hand</div><span class="money m">${whole(c.cash)}</span><p class="small muted" style="margin:4px 0 0">Bank + wallet, live</p></section>`;
-  const extraTile = `<section class="card"><div class="lbl">Safe extra payment</div><span class="money m">${whole(c.safeExtra)}</span><p class="small muted" style="margin:4px 0 0">Ceiling for extra debt payments</p></section>`;
-  const per = c.periodsPerMonth;
-  const waterfall = `<details class="calc card"><summary>How these are worked out</summary>
-    ${waterfallTable(c)}
-    <p class="hint" style="margin:10px 0 0">Safe to spend is the pot your living budget draws from until payday. Safe extra payment also sets your budget aside, so it is what can go to debt without touching living money.</p>
-  </details>`;
+  const tile = (href, label, value, sub, cls = '') => `<a class="card tile" href="${href}"><div class="lbl">${label}</div><span class="money m ${cls}">${value}</span><span class="small muted">${sub}</span></a>`;
+  const tiles = [
+    c.debts.length ? tile('#payoff', 'Debt-free', p.debtFree ? MON[+p.date.slice(5, 7) - 1] + ' ' + p.date.slice(0, 4) : '8+ yrs', p.debtFree ? p.months + ' months' : 'Raise the extra') : '',
+    c.debts.length ? tile('#debts', 'Total owed', shortMoney(c.totalDebt), whole(c.debts.reduce((a, d) => a + d.estInterest, 0)) + ' interest/mo') : '',
+    sv ? tile('#savings', 'Emergency cover', sv.cover.monthsCovered.toFixed(1) + ' mo', 'Minimum ' + sv.cover.minMonths, sv.cover.monthsCovered < sv.cover.minMonths ? 'neg' : '') : '',
+    tile('#weekly', 'Follow-through', Math.round(ft.score * 100) + '%', esc(ft.next.replace(' — keep showing up', ''))),
+  ].filter(Boolean).join('');
+  const more = `<details class="sec more"><summary>More details</summary><div class="sec-body stack">
+      ${cardHtml}
+      ${c.debts.length && insight ? `<section class="card"><h2>Pay a little more?</h2>${insight}${sparkline(p.rows)}<p class="small muted" style="margin:8px 0 0">${s.payoffMethod} · ${whole(s.monthlyExtraPayment)} extra a month now · ${whole(p.totalInterest)} interest to debt-free</p></section>` : ''}
+      ${homeCompare()}
+      <section class="card calc"><h2>How Safe to Spend is worked out</h2>${waterfallTable(c)}
+        <p class="hint" style="margin:10px 0 0">Safe to spend is the pot your living budget draws from until payday. Safe extra payment also sets your budget aside, so it is what can go to debt without touching living money.</p></section>
+    </div></details>`;
+  const cardStat = card ? `<a href="#debts"><span>Card used</span><b>${Math.round(card.used * 100)}%</b></a>` : `<div><span>Total owed</span><b>${shortMoney(c.totalDebt)}</b></div>`;
   v.innerHTML = `${banner}${setupNeeded}
     <section class="hero">
-      <div class="lbl">Safe to spend until ${fmtDate(c.nextPayday, false)}</div>
+      <div class="row" style="align-items:center"><div class="lbl">Safe to spend</div>${card ? `<span class="pill">${card.status}</span>` : ''}</div>
       <div class="money"><span class="cur">${esc(sym())}</span>${Math.round(c.safeToSpend).toLocaleString('en-US')}</div>
-      <p>After debt payments, bills due before payday, savings and your ${whole(c.cashBuffer)} buffer.</p>
+      <p>Until payday, ${wd(c.nextPayday)} ${fmtDate(c.nextPayday, false)}. Bills, debt payments, savings and your buffer are already set aside.</p>
+      <div class="hero-stats">
+        <a href="#payday"><span>Cash</span><b>${shortMoney(c.cash)}</b></a>
+        <a href="#payday"><span>Safe extra</span><b class="hl">${shortMoney(c.safeExtra)}</b></a>
+        ${cardStat}
+      </div>
     </section>
     <div class="stack">
-      <div class="grid2">${cashTile}${extraTile}</div>
       ${comingUp()}
+      <div class="grid2">${tiles}</div>
       ${homeSaveOrPay()}
-      ${cardHtml}
-      ${homeFollowThrough()}
-      ${due.length ? `<section class="card"><h2>Next due</h2><ul class="list">${dueHtml}</ul></section>` : ''}
-      ${debtFree}
-      ${homeCompare()}
-      ${waterfall}
+      ${more}
     </div>`;
 }
 
@@ -1281,6 +1368,10 @@ function compareCard(monthIso) {
 // ---------- Monthly Plan (S4) ----------
 let planMonth = null;
 const STATUS_PILL = { 'Not started': 'plain', 'On plan': 'green', 'Over': 'red', 'Posted': 'amber', 'Nothing posted': 'plain', 'Waiting for payday': 'plain', 'Below plan': 'amber' };
+function fold(title, sub, body, open, spent, budget) {
+  const bar = budget > 0 ? `<div class="bar" style="margin-top:8px"><span class="${spent > budget ? 'over' : ''}" style="width:${Math.min(spent / budget, 1) * 100}%"></span></div>` : '';
+  return `<details class="fold"${open ? ' open' : ''}><summary><div class="row"><h2>${esc(title)}</h2><span class="small muted">${sub}</span></div>${bar}</summary><div class="fold-body">${body}</div></details>`;
+}
 function renderPlan() {
   const v = $('#view');
   if (!planMonth) planMonth = state.settings.planningMonth || todayISO().slice(0, 8) + '01';
@@ -1298,16 +1389,16 @@ function renderPlan() {
   for (const g of groups) {
     const rows = shown.filter(r => r.group === g); if (!rows.length) continue;
     const b = rows.reduce((a, r) => a + r.budget, 0), a = rows.reduce((x, r) => x + r.actual, 0);
-    groupsHtml += `<div class="ghead"><h2>${g}</h2><span class="small muted">${whole(a)} of ${whole(b)}</span></div><section class="card" style="padding-block:4px">${rows.map(prow).join('')}</section>`;
+    groupsHtml += fold(g, `${whole(a)} of ${whole(b)}`, rows.map(prow).join(''), rows.some(r => r.status === 'Over'), a, b);
   }
   const others = [...shown.filter(r => !groups.includes(r.group))];
-  if (others.length) groupsHtml += `<div class="ghead"><h2>More</h2></div><section class="card" style="padding-block:4px">${others.map(prow).join('')}</section>`;
+  if (others.length) groupsHtml += fold('More', '', others.map(prow).join(''), others.some(r => r.status === 'Over'));
   const db = p.debts.filter(r => r.group === 'Debt'), dpr = p.debts.filter(r => r.group === 'Debt (payroll)');
-  groupsHtml += `<div class="ghead"><h2>Debt payments</h2><span class="small muted">${whole(t.plannedDebt)} planned</span></div><section class="card" style="padding-block:4px">${db.map(prow).join('')}</section>`;
-  if (dpr.length) groupsHtml += `<div class="ghead"><h2>Paid from payroll</h2><span class="small muted">Not counted against take-home</span></div><section class="card" style="padding-block:4px">${dpr.map(prow).join('')}</section>`;
-  groupsHtml += `<div class="ghead"><h2>Savings</h2></div><section class="card" style="padding-block:4px">${prow(p.savings)}</section>`;
+  groupsHtml += fold('Debt payments', `${whole(db.reduce((x, r) => x + r.actual, 0))} of ${whole(t.plannedDebt)}`, db.map(prow).join(''), false, db.reduce((x, r) => x + r.actual, 0), t.plannedDebt);
+  if (dpr.length) groupsHtml += fold('Paid from payroll', 'Not counted against take-home', dpr.map(prow).join(''), false);
+  groupsHtml += fold('Savings', `${whole(p.savings.actual)} of ${whole(p.savings.budget)}`, prow(p.savings), false, p.savings.actual, p.savings.budget);
   const intRows = [...p.spending.filter(r => r.interest && !(r.budget > 0 || r.actual > 0)), ...p.interest];
-  if (intRows.length) groupsHtml += `<div class="ghead"><h2>Interest posted</h2><span class="small muted">Non-cash, raises the balance</span></div><section class="card" style="padding-block:4px">${intRows.map(prow).join('')}</section>`;
+  if (intRows.length) groupsHtml += fold('Interest posted', 'Non-cash, raises the balance', intRows.map(prow).join(''), false);
   const spentPct = t.livingTotal > 0 ? Math.min(t.spentLiving / t.livingTotal, 1) : 0;
   v.innerHTML = `
     ${planNav('plan')}
@@ -1325,9 +1416,9 @@ function renderPlan() {
         </div>
         <p class="hint" style="margin:10px 0 0">${isPlanning ? 'This is your planning month.' : 'Budgets are the same every month; actuals are for the month shown.'} Cushion is net pay less budgets, take-home debt payments and savings, before any extra payment.</p>
       </section>
-      ${compareCard(planMonth)}
     </div>
-    ${groupsHtml}
+    <div class="stack" style="margin-top:12px">${groupsHtml}
+    <details class="fold"><summary><div class="row"><h2>${shortMonth(planMonth)} vs last month</h2><span class="small muted">Flows</span></div></summary><div class="fold-body">${compareCard(planMonth)}</div></details></div>
     ${hidden ? `<p class="hint" style="margin:12px 2px 0">${hidden} categor${hidden === 1 ? 'y has' : 'ies have'} no budget and no spending this month, so ${hidden === 1 ? 'it is' : 'they are'} hidden.</p>` : ''}`;
   $('#pm-prev').addEventListener('click', () => { planMonth = E.edate(planMonth, -1); renderPlan(); });
   $('#pm-next').addEventListener('click', () => { planMonth = E.edate(planMonth, 1); renderPlan(); });
@@ -1365,25 +1456,31 @@ function renderDebts() {
       prog = `<div class="row" style="margin-top:14px"><span class="lbl">Ceiling</span><span class="pill ${c.card.level}">${c.card.status}</span></div>
         <p class="small muted" style="margin:6px 0 0">${pct(c.card.used)} of the ${whole(c.card.hard)} hard ceiling used · ${whole(c.card.room)} room left.</p>`;
     }
-    return `<section class="card">
-      <div class="row"><h2>${esc(d.name)}</h2><span class="pill ${ACTION_PILL[d.action]}">${d.action}</span></div>
-      <div class="row" style="margin-top:6px"><span class="money m">${whole(d.liveBalance)}</span><span class="small muted">Priority ${d.priority}</span></div>
-      <dl class="dl">
-        <dt>APR</dt><dd>${(d.apr * 100).toFixed(2)}%</dd>
+    return `<details class="fold debt"><summary>
+        <div class="row"><h2>${esc(d.name)}</h2><span class="pill ${ACTION_PILL[d.action]}">${d.action}</span></div>
+        <div class="row" style="margin-top:4px"><span class="money m" style="margin:0">${whole(d.liveBalance)}</span><span class="small muted">${(d.apr * 100).toFixed(1)}% · due ${d.nextDue ? fmtDate(d.nextDue, false) : '—'}</span></div>
+        ${d.progress ? `<div class="small muted" style="margin-top:4px">${pct(d.progress.pctPaid, 0)} paid off · <span style="color:${d.progress.pace === 'BEHIND' ? 'var(--bad)' : 'var(--good)'};font-weight:600">${d.progress.pace.toLowerCase()}</span></div>` : c.card && d.isRevolving ? `<div class="small muted" style="margin-top:4px">${pct(c.card.used, 0)} of ceiling · <span style="font-weight:600">${c.card.status.toLowerCase()}</span></div>` : ''}
+      </summary><div class="fold-body">
+      <dl class="dl" style="margin-top:0">
+        <dt>Priority</dt><dd>${d.priority} of ${c.debts.length}</dd>
         <dt>Required payment</dt><dd>${whole(d.requiredPayment)}</dd>
         <dt>Next due</dt><dd>${d.nextDue ? wd(d.nextDue) + ' ' + fmtDate(d.nextDue) : '—'}</dd>
         <dt>Paid from</dt><dd>${d.paymentSource === 'Payroll' ? 'Payroll deduction' : 'Take-home pay'}</dd>
         <dt>Est. monthly interest</dt><dd>${whole(d.estInterest)}</dd>
-      </dl>${prog}</section>`;
+      </dl>${prog}<div style="height:8px"></div></div></details>`;
   }).join('');
   v.innerHTML = `${debtNav('debts')}
-    <section class="hero" style="padding-top:4px">
+    <section class="hero">
       <div class="lbl">Total owed today</div>
       <div class="money"><span class="cur">${esc(sym())}</span>${Math.round(c.totalDebt).toLocaleString('en-US')}</div>
-      <p>${whole(req)} a month in required payments, about ${whole(int)} of it interest. ${state.settings.payoffMethod} order: ${state.settings.payoffMethod === 'Snowball' ? 'smallest balance first' : 'highest rate first'}.</p>
+      <div class="hero-stats">
+        <div><span>Monthly</span><b>${shortMoney(req)}</b></div>
+        <div><span>Interest</span><b>${shortMoney(int)}</b></div>
+        <a href="#payoff"><span>Debt-free</span><b class="hl">${c.payoff.debtFree ? MON[+c.payoff.date.slice(5, 7) - 1] + ' ’' + c.payoff.date.slice(2, 4) : '8+ yrs'}</b></a>
+      </div>
     </section>
-    <div class="stack">${snapshotCard(c)}${cards}</div>
-    <p class="hint" style="margin:12px 2px 0">Balances start from Setup and move with what you log: payments lower them, interest you post raises them. The card follows card purchases and card payments.</p>`;
+    <div class="stack">${cards}${snapshotCard(c)}</div>
+    <p class="hint" style="margin:12px 2px 0">${state.settings.payoffMethod} order: ${state.settings.payoffMethod === 'Snowball' ? 'smallest balance first' : 'highest rate first'}. Balances move with what you log: payments lower them, interest you post raises them. Tap a debt for details.</p>`;
   wireTrend();
 }
 
@@ -1395,13 +1492,12 @@ function snapshotCard(c) {
   const debts = state.debts;
   const short = n => n.replace(/ Loan$/, '').replace(/ Gold$/, '');
   const rows = ser.slice().reverse().map(x => `<tr data-snaprow="${esc(x.month)}" style="cursor:pointer"><td>${shortMonth(x.month)}</td>${x.debts.map(d => `<td>${d.balance != null ? shortMoney(d.balance) : '—'}</td>`).join('')}<td><b>${x.total != null ? whole(x.total) : '—'}</b></td><td class="${x.change == null ? '' : x.change <= 0 ? 'inc' : 'cc'}">${x.change == null ? '—' : (x.change <= 0 ? '▼ ' : '▲ ') + whole(Math.abs(x.change))}</td></tr>`).join('');
-  return `<section class="card">
-    <div class="row"><h2>Month-end balances</h2>${ser.length ? `<span class="small muted">${ser.length} month${ser.length === 1 ? '' : 's'} recorded</span>` : ''}</div>
+  return `<details class="fold"${due ? ' open' : ''}><summary><div class="row"><h2>Month-end trend</h2><span class="small muted">${ser.length ? ser.length + ' month' + (ser.length === 1 ? '' : 's') + ' recorded' : 'Not started'}</span></div></summary><div class="fold-body">
     ${ser.length ? '' : `<p class="small muted" style="margin:6px 0 0">Once a month, enter each debt's statement balance. Your recorded totals build a trend line next to the payoff projection.</p>`}
     ${trendChart(tr)}
     ${rows ? `<div class="tablewrap"><table class="cmp"><thead><tr><th style="text-align:left">Month</th>${debts.map(d => `<th>${esc(short(d.name))}</th>`).join('')}<th>Total</th><th>Change</th></tr></thead><tbody>${rows}</tbody></table></div><p class="hint" style="margin:6px 0 0">Tap a month to edit it.</p>` : ''}
-    <div class="actions"><button class="btn primary" type="button" data-snap="${esc(target)}">${due ? 'Record ' + shortMonth(target) + ' balances' : 'Record month-end balances'}</button></div>
-  </section>`;
+    <div class="actions" style="margin-bottom:8px"><button class="btn primary" type="button" data-snap="${esc(target)}">${due ? 'Record ' + shortMonth(target) + ' balances' : 'Record month-end balances'}</button></div>
+  </div></details>`;
 }
 let trendData = null;
 function niceMax(v) { const e = Math.pow(10, Math.floor(Math.log10(v))), m = v / e; return ([1, 1.2, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 8, 10].find(k => m <= k)) * e; }
@@ -1598,24 +1694,19 @@ function renderSavings() {
       <div class="fill" style="width:${mpos(cv.monthsCovered)}%;background:${cv.status === 'Below minimum' ? 'var(--bad)' : cv.status === 'Thin' ? 'var(--warn)' : 'var(--good)'}"></div>
       <div class="tick" style="left:${mpos(cv.minMonths)}%" title="Your minimum"></div><div class="tick" style="left:${mpos(3)}%" title="3 months"></div><div class="tick" style="left:calc(${mpos(6)}% - 2px)" title="6 months"></div></div>
     <div class="meter-legend"><span>0</span><span>min ${cv.minMonths}</span><span>3 mo</span><span>6 mo</span></div>`;
-  const goals = sv.goals.map(g => `<section class="card">
-      <div class="row"><h2>${esc(g.name)}</h2><span class="pill ${GOAL_PILL[g.status] || 'plain'}">${g.status}</span></div>
-      <div class="row" style="margin-top:6px"><span class="money m">${whole(g.saved)}</span><span class="small muted">of ${whole(g.target)}</span></div>
+  const goals = sv.goals.map(g => `<div class="prow">
+      <div class="row"><span class="t">${esc(g.name)}</span><span class="pill ${GOAL_PILL[g.status] || 'plain'}">${g.status}</span></div>
+      <div class="row small"><span class="muted">${whole(g.saved)} of ${whole(g.target)}</span><span class="muted">${g.projectedDate ? 'by ' + shortMonth(g.projectedDate) : g.status === 'Reached' ? 'Done' : 'not funded'}</span></div>
       <div class="bar"><span style="width:${g.progress * 100}%"></span></div>
-      <dl class="dl">
-        <dt>Still needed</dt><dd>${whole(g.stillNeeded)}</dd>
-        <dt>Planned a month</dt><dd>${whole(g.planned)}</dd>
-        ${g.neededPerMonth != null ? `<dt>Needed a month</dt><dd>${whole(g.neededPerMonth)}</dd>` : ''}
-        <dt>Target date</dt><dd>${g.targetDate ? fmtDate(g.targetDate) : 'None set'}</dd>
-        <dt>Projected</dt><dd>${g.projectedDate ? fmtDate(g.projectedDate) : g.status === 'Reached' ? 'Done' : 'Never at this rate'}</dd>
-      </dl></section>`).join('');
+      <div class="small muted">${whole(g.planned)} a month planned${g.neededPerMonth != null ? ' · ' + whole(g.neededPerMonth) + ' needed' : ''}${g.targetDate ? ' · target ' + shortMonth(g.targetDate) : ''}</div></div>`).join('');
   const flow = sv.flow.map(f => `<li><div class="main"><div class="t">${esc(f.name)}</div><div class="s">${f.from}${f.to ? ' → ' + esc(f.to) : ''}</div></div><div class="amt">${whole(f.amount)}</div></li>`).join('');
   const accts = sv.accounts.map(a => `<li><div class="main"><div class="t">${esc(a.name)}</div><div class="s">${a.accessible ? 'Can withdraw' : 'Not counted as spendable'}${a.notes ? ' · ' + esc(a.notes) : ''}</div></div><div class="amt">${whole(a.balance)}</div></li>`).join('');
   v.innerHTML = `${planNav('savings')}
-    <section class="hero" style="padding-top:4px">
+    <section class="hero">
       <div class="lbl">Savings you can reach</div>
       <div class="money"><span class="cur">${esc(sym())}</span>${Math.round(sv.accessible).toLocaleString('en-US')}</div>
       <p>${whole(sv.total)} saved in all${locked > 0 ? `; ${whole(locked)} is held where you can't withdraw it` : ''}.</p>
+      <div class="hero-stats"><div><span>Saved/mo</span><b>${shortMoney(sv.monthlySaved)}</b></div><div><span>Rate</span><b>${pct(sv.savingsRate, 0)}</b></div><div><span>Cover</span><b class="hl">${cv.monthsCovered.toFixed(1)} mo</b></div></div>
     </section>
     <div class="stack">
       <section class="card"><h2>Save or pay debt?</h2>
@@ -1628,16 +1719,16 @@ function renderSavings() {
           <dt>Interest saved a year if your ${whole(+state.settings.monthlyOutsideSavings || 0)} savings went to it instead</dt><dd>${whole(sp.interestIfOutsideToCard)}</dd>` : ''}
         </dl>
         <p class="hint" style="margin:10px 0 0">Savings come first until your accessible savings cover your minimum months of essentials; the rest goes to the highest-rate debt.</p></section>
-      <section class="card"><div class="row"><h2>Emergency cover</h2><span class="pill ${COVER_PILL[cv.status]}">${cv.status}</span></div>
-        <span class="money m">${cv.monthsCovered.toFixed(2)} months</span>
+      <details class="fold"><summary><div class="row"><h2>Emergency cover</h2><span class="pill ${COVER_PILL[cv.status]}">${cv.status}</span></div>
+        <div class="small muted" style="margin-top:4px">${cv.monthsCovered.toFixed(1)} months of essentials · minimum ${cv.minMonths}</div></summary><div class="fold-body">
         ${gauge}
-        <dl class="dl"><dt>Essential budget (no sinking funds)</dt><dd>${whole(cv.essentialBudget)}</dd><dt>Take-home debt payments</dt><dd>${whole(cv.takeHomeDebt)}</dd><dt>Essential monthly outgo</dt><dd>${whole(cv.outgo)}</dd></dl></section>
-    </div>
-    ${sv.goals.length ? `<div class="ghead"><h2>Goals</h2><a class="small" href="#setup" style="color:var(--accent);font-weight:600;text-decoration:none">Edit in Setup</a></div><div class="stack">${goals}</div>` : ''}
-    <div class="ghead"><h2>Saved each month</h2><span class="small muted">${pct(sv.savingsRate)} savings rate</span></div>
-    <section class="card" style="padding-block:4px"><ul class="list">${flow || '<li><div class="main s">Nothing set aside yet.</div></li>'}<li><div class="main"><div class="t">Total</div><div class="s">of net pay plus payroll savings</div></div><div class="amt">${whole(sv.monthlySaved)}</div></li></ul></section>
-    <div class="ghead"><h2>Accounts</h2><a class="small" href="#setup" style="color:var(--accent);font-weight:600;text-decoration:none">Update balances</a></div>
-    <section class="card" style="padding-block:4px"><ul class="list">${accts || '<li><div class="main s">Add savings accounts in Setup.</div></li>'}</ul></section>`;
+        <dl class="dl"><dt>Essential budget (no sinking funds)</dt><dd>${whole(cv.essentialBudget)}</dd><dt>Take-home debt payments</dt><dd>${whole(cv.takeHomeDebt)}</dd><dt>Essential monthly outgo</dt><dd>${whole(cv.outgo)}</dd></dl><div style="height:8px"></div></div></details>
+      ${sv.goals.length ? `<details class="fold" open><summary><div class="row"><h2>Goals</h2><span class="small muted">${sv.goals.filter(g => g.status === 'Reached' || g.status === 'On track' || g.status === 'Over-funding').length} of ${sv.goals.length} on course</span></div></summary><div class="fold-body">${goals}<p class="hint" style="margin:4px 0 12px">Edit goals in Setup.</p></div></details>` : ''}
+      <details class="fold"><summary><div class="row"><h2>Saved each month</h2><span class="small muted">${whole(sv.monthlySaved)} · ${pct(sv.savingsRate)}</span></div></summary><div class="fold-body">
+        <ul class="list" style="margin:0">${flow || '<li><div class="main s">Nothing set aside yet.</div></li>'}<li><div class="main"><div class="t">Total</div><div class="s">of net pay plus payroll savings</div></div><div class="amt">${whole(sv.monthlySaved)}</div></li></ul></div></details>
+      <details class="fold"><summary><div class="row"><h2>Accounts</h2><span class="small muted">${sv.accounts.length} · ${shortMoney(sv.total)}</span></div></summary><div class="fold-body">
+        <ul class="list" style="margin:0">${accts || '<li><div class="main s">Add savings accounts in Setup.</div></li>'}</ul><p class="hint" style="margin:4px 0 12px">Update balances in Setup.</p></div></details>
+    </div>`;
 }
 function goalsHtml(d) {
   const num = (id, label, val) => `<div class="field"><label for="${id}">${label}</label><input class="in" type="number" inputmode="decimal" step="0.01" id="${id}" value="${val ?? ''}"></div>`;
@@ -1666,25 +1757,30 @@ function renderPayday() {
   const v = $('#view'), c = calc; if (!c) { v.innerHTML = planNav('payday') + '<div class="empty">Finish Setup first.</div>'; return; }
   const pc = E.paydayChecklist(state, todayISO());
   const isToday = pc.payday === todayISO();
-  const steps = pc.steps.map((st, i) => `<div class="prow"><div class="row"><span class="t">${esc(st.label)}</span><span class="pill ${st.status === 'Done' ? 'green' : st.status === 'Skipped' ? 'plain' : 'amber'}">${st.status}</span></div>
-      <div class="s small muted">${esc(st.why)}</div>
-      <div class="seg" style="margin-top:6px">${STEP_STATES.map(x => `<button type="button" data-step="${esc(st.key)}" data-st="${x}" aria-pressed="${x === st.status}">${x}</button>`).join('')}</div></div>`).join('');
+  const steps = pc.steps.map(st => `<div class="step${st.status === 'Done' ? ' done' : st.status === 'Skipped' ? ' skipped' : ''}">
+      <button type="button" class="tick-btn" data-step="${esc(st.key)}" data-st="${st.status === 'Done' ? 'Not Yet' : 'Done'}" aria-label="${st.status === 'Done' ? 'Mark not done' : 'Mark done'}: ${esc(st.label)}" aria-pressed="${st.status === 'Done'}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
+      <div class="main"><div class="t">${esc(st.label)}</div><div class="s">${st.status === 'Skipped' ? 'Skipped this payday' : esc(st.why)}</div></div>
+      <button type="button" class="linkbtn" data-step="${esc(st.key)}" data-st="${st.status === 'Skipped' ? 'Not Yet' : 'Skipped'}" style="padding:0 2px;font-size:13px;color:var(--muted)">${st.status === 'Skipped' ? 'Undo' : 'Skip'}</button></div>`).join('');
   const card = c.card, efGap = Math.max((+state.settings.emergencyFundTarget || 0) - E.savings(state, todayISO(), c).accessible, 0);
   v.innerHTML = `${planNav('payday')}
-    <section class="hero" style="padding-top:4px">
+    <section class="hero">
       <div class="lbl">Safe extra payment</div>
       <div class="money"><span class="cur">${esc(sym())}</span>${Math.round(c.safeExtra).toLocaleString('en-US')}</div>
-      <p>The most you can send to debt this cycle without touching living money, bills or savings. Fund life first, then send extra.</p>
+      <p>The most you can send to debt this cycle without touching living money, bills or savings.</p>
+      <div class="hero-stats">
+        <div><span>Safe to spend</span><b>${shortMoney(c.safeToSpend)}</b></div>
+        ${card ? `<div><span>Card room</span><b>${shortMoney(card.room)}</b></div>` : ''}
+        <div><span>Fund gap</span><b>${shortMoney(efGap)}</b></div>
+      </div>
     </section>
     <div class="stack">
-      <section class="card calc"><h2>How it's worked out</h2>${waterfallTable(c)}
-        <p class="hint" style="margin:10px 0 0">${c.netPayReceived ? 'Your latest pay is counted because it landed after your cash-on-hand date.' : 'Your latest pay is already inside cash on hand, so it isn’t counted twice.'} Update cash on hand in Setup after payday.</p></section>
-      ${card ? `<section class="card"><h2>Guardrails</h2><dl class="dl">
-        <dt>Live card balance</dt><dd>${whole(card.balance)}</dd><dt>Room to hard ceiling</dt><dd>${whole(card.room)}</dd>
-        <dt>Emergency fund gap</dt><dd>${whole(efGap)}</dd></dl></section>` : ''}
       <section class="card"><div class="row"><h2>Payday checklist</h2><span class="small muted">${pc.done} of ${pc.steps.length} done</span></div>
-        <p class="small muted" style="margin:4px 0 6px">For the ${wd(pc.payday)} ${fmtDate(pc.payday)} payday${isToday ? ' (today)' : ''}. It starts fresh each payday.</p>
-        <div class="bar"><span style="width:${pc.score * 100}%"></span></div>${steps}</section>
+        <div class="bar"><span style="width:${pc.score * 100}%"></span></div>
+        <p class="small muted" style="margin:8px 0 2px">For the ${wd(pc.payday)} ${fmtDate(pc.payday)} payday${isToday ? ' (today)' : ''}. Tap to tick a step; it starts fresh each payday.</p>
+        ${steps}</section>
+      <details class="fold"><summary><div class="row"><h2>How Safe Extra is worked out</h2><span class="small muted">Breakdown</span></div></summary><div class="fold-body calc">${waterfallTable(c)}
+        <p class="hint" style="margin:10px 0 8px">${c.netPayReceived ? 'Your latest pay is counted because it landed after your cash-on-hand date.' : 'Your latest pay is already inside cash on hand, so it isn’t counted twice.'} Update cash on hand in Setup after payday.</p></div></details>
     </div>`;
   v.querySelectorAll('[data-step]').forEach(b => b.addEventListener('click', async () => {
     const key = b.dataset.step, val = b.dataset.st, pd = pc.payday;
@@ -1762,25 +1858,28 @@ function openCheckIn(existing) {
 }
 
 // ---------- reminders (Phase 3) ----------
+let showAllComing = false;
 function comingUp() {
   if (!calc) return '';
-  const items = E.reminders(state, todayISO(), calc);
+  const items = E.reminders(state, todayISO(), calc, 31);
   if (backupDue()) items.unshift({ kind: 'backup', date: todayISO(), days: 0, title: 'Back up your data' });
+  const total = items.length; if (!showAllComing) items.splice(4);
   const li = items.map(it => {
     const n = it.days, hot = it.kind === 'bill' ? it.overdue || n <= 3 : it.kind === 'due' ? !it.covered && n <= 3 : n <= 1;
     const whenTxt = n < 0 ? Math.abs(n) + ' days late' : n === 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days';
     let detail = '', action = '';
-    if (it.kind === 'payday') { detail = `${wd(it.date)} · ${whenTxt}. Work through the payday checklist before sending extra to debt.`; action = `<a class="mini" href="#payday" style="display:inline-grid;place-items:center;text-decoration:none;color:inherit">Checklist</a>`; }
+    if (it.kind === 'payday') { detail = `${wd(it.date)} · ${whenTxt}`; action = `<a class="mini" href="#payday" style="display:inline-grid;place-items:center;text-decoration:none;color:inherit">Checklist</a>`; }
     if (it.kind === 'due') detail = `${whole(it.amount)} · ${whenTxt} · ${it.payroll ? 'deducted from pay' : it.covered ? 'payment logged' : it.paid > 0 ? whole(it.paid) + ' logged so far' : 'not logged yet'}`;
-    if (it.kind === 'backup') { detail = pref.lastBackup ? `Last backup ${fmtDate(pref.lastBackup)}. Your data lives only on this phone.` : 'Your data lives only on this phone. Save a backup file and keep a copy safe.'; action = `<button class="mini" type="button" data-backup="1">Back up</button>`; }
-    if (it.kind === 'snapshot') { detail = `Enter each debt's statement balance for ${shortMonth(it.month)} to build your trend line.`; action = `<button class="mini" type="button" data-snap="${esc(it.month)}">Record</button>`; }
-    if (it.kind === 'bill') { detail = `${whole(it.amount)} · ${it.overdue ? '<b style="color:var(--bad)">' + whenTxt + '</b>' : whenTxt} · set aside before payday`; action = `<button class="mini" type="button" data-billpaid="${esc(it.id)}">Mark paid</button>`; }
+    if (it.kind === 'backup') { detail = pref.lastBackup ? `Last one ${fmtDate(pref.lastBackup, false)} · data lives only here` : 'Your data lives only on this phone'; action = `<button class="mini" type="button" data-backup="1">Back up</button>`; }
+    if (it.kind === 'snapshot') { detail = `Statement balances for ${shortMonth(it.month)}`; action = `<button class="mini" type="button" data-snap="${esc(it.month)}">Record</button>`; }
+    if (it.kind === 'bill') { detail = `${whole(it.amount)} · ${it.overdue ? '<b style="color:var(--bad)">' + whenTxt + '</b>' : whenTxt} `; action = `<button class="mini" type="button" data-billpaid="${esc(it.id)}">Mark paid</button>`; }
     return `<div class="rem"><div class="when${hot ? ' hot' : ''}"><b>${+it.date.slice(8)}</b><span>${MON[+it.date.slice(5, 7) - 1]}</span></div>
       <div class="main"><div class="t">${esc(it.title)}</div><div class="s">${detail}</div></div>${action}</div>`;
   }).join('');
-  return `<section class="card"><h2>Coming up</h2><div style="margin-top:6px">${li}</div></section>`;
+  return `<section class="card"><div class="row"><h2>Coming up</h2>${total > 4 ? `<button class="linkbtn" type="button" id="cu-all" style="padding:0">${showAllComing ? 'Show less' : 'All ' + total}</button>` : ''}</div><div style="margin-top:6px">${li}</div></section>`;
 }
 document.addEventListener('click', async e => {
+  if (e.target.closest('#cu-all')) { showAllComing = !showAllComing; render(); return; }
   const sn = e.target.closest('[data-snap]'); if (sn) { openSnapshot(sn.dataset.snap); return; }
   if (e.target.closest('[data-backup]')) { backupNow(); return; }
   if (e.target.closest('[data-restore]')) { openRestore(); return; }
@@ -1858,7 +1957,7 @@ function openRestore() {
     if (!data) return;
     if (!armed && (state.transactions.length || state.debts.length)) { armed = true; $('#rs-go').textContent = 'Tap again to replace this ' + (STANDALONE ? 'phone’s' : 'device’s') + ' data'; return; }
     state = withIds({ ...JSON.parse(JSON.stringify(BLANK)), ...data.config, settings: { ...BLANK.settings, ...(data.config.settings || {}) }, transactions: data.transactions.map(t => ({ ...t, id: t.id || 't' + uid8() })) });
-    outbox = []; lsSet(LS_OUT, outbox); cacheLocal(); setupDraft = null; close(); location.hash = 'home'; render();
+    outbox = []; lsSet(LS_OUT, outbox); cacheLocal(); setupDraft = null; close(); setTimeout(() => go('home'), 60); render();
     showToast('Restored ' + data.transactions.length + ' transactions');
   });
 }
@@ -2156,6 +2255,7 @@ function renderSetup() {
     ${sec('payroll', 'Payroll deductions (' + d.payrollDeductions.length + ')', pr)}
     ${sec('goals', 'Savings goals (' + (d.savingsGoals || []).length + ')', goalsHtml(d))}
     ${sec('rules', 'Merchant rules (' + (d.merchantRules || []).length + ')', rules)}
+    ${sec('look', 'Appearance', `<p class="hint" style="margin:0 0 10px">Pick a colour theme. Dark mode follows your phone's setting.</p><div class="swatches">${THEMES.map(([k, label, a, b]) => `<button type="button" data-theme-pick="${k}" aria-pressed="${(pref.theme || 'harbour') === k}"><i style="background:radial-gradient(120% 140% at 100% 0%, ${b}, ${a} 62%)"></i>${label}</button>`).join('')}</div>`)}
     ${sec('export', 'Export and backup', exp)}
   </div><div id="savebar-slot"></div>`;
   v.querySelectorAll('details.sec').forEach(el => el.addEventListener('toggle', () => { el.open ? openSecs.add(el.dataset.sec) : openSecs.delete(el.dataset.sec); }));
@@ -2173,6 +2273,7 @@ function renderSetup() {
   v.querySelectorAll('[data-rdel]').forEach(b => b.addEventListener('click', () => { readSetup(); setupDraft.merchantRules.splice(+b.dataset.rdel, 1); renderSetup(); showSavebar(); }));
   $('#ex-tx').addEventListener('click', () => exportFile('transactions'));
   $('#bk-save').addEventListener('click', backupNow);
+  v.querySelectorAll('[data-theme-pick]').forEach(b => b.addEventListener('click', () => { pref.theme = b.dataset.themePick; lsSet(LS_PREF, pref); applyTheme(); v.querySelectorAll('[data-theme-pick]').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
   const bkr = $('#bk-restore'); if (bkr) bkr.addEventListener('click', openRestore);
   $('#ex-bal').addEventListener('click', () => exportFile('balances'));
   showSavebar();
@@ -2255,7 +2356,7 @@ async function saveSetup() {
 // ---------- misc ----------
 let toastT;
 function showToast(msg) { let el = document.getElementById('toast'); if (!el) { el = document.createElement('div'); el.id = 'toast'; el.className = 'toast'; el.setAttribute('role', 'status'); document.body.appendChild(el); } el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2600); }
-document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) { if (g.dataset.go === 'activity') filt = { q: '', cat: '__none', method: '' }; location.hash = g.dataset.go; } });
+document.addEventListener('click', e => { const g = e.target.closest('[data-go]'); if (g) { if (g.dataset.go === 'activity') filt = { q: '', cat: '__none', method: '' }; go(g.dataset.go); } });
 
 boot().then(() => { if (location.hash === '#add') { history.replaceState(null, '', '#home'); render(); openTx(null); } });
 })();
