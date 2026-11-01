@@ -92,7 +92,7 @@ button { cursor: pointer }
 .brand { display: flex; align-items: center; gap: 8px }
 .brand span { color: var(--accent); margin-left: -8px }
 .brand .logo { width: 28px; height: 28px; flex: none }
-.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; font-weight: 500; white-space: nowrap }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 11px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 13px; font-weight: 500; white-space: nowrap; min-width: 0; overflow: hidden; text-overflow: ellipsis }
 .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent) }
 
 /* hero: the coloured summary card that opens each screen */
@@ -1370,7 +1370,8 @@ function render() {
   document.body.dataset.sec = tab;
   if (calc) {
     const n = daysUntil(calc.nextPayday);
-    $('#paychip-t').textContent = 'Payday ' + wd(calc.nextPayday) + ' ' + fmtDate(calc.nextPayday, false) + ' · ' + (n === 0 ? 'today' : n === 1 ? 'tomorrow' : n + ' days');
+    $('#paychip-t').textContent = 'Payday ' + (n === 0 ? 'today' : n === 1 ? 'tomorrow' : fmtDate(calc.nextPayday, false) + ' · ' + n + 'd');
+    $('#paychip').setAttribute('aria-label', 'Payday ' + wd(calc.nextPayday) + ' ' + fmtDate(calc.nextPayday) + ', open the payday checklist');
   }
   $('#fab').hidden = r === 'setup';
   if (r === 'home') renderHome(); else if (r === 'activity') renderActivity(); else if (r === 'plan') renderPlan(); else if (r === 'debts') renderDebts(); else if (r === 'payoff') renderPayoff(); else if (r === 'savings') renderSavings(); else if (r === 'payday') renderPayday(); else if (r === 'weekly') renderWeekly(); else renderSetup();
