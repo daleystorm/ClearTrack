@@ -76,7 +76,7 @@ html, body { min-height: 100% }
 body { background: var(--bg); color: var(--ink); font-family: var(--f-ui); font-size: 15px; line-height: 1.45;
   font-variant-numeric: tabular-nums; -webkit-tap-highlight-color: transparent }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg) }
-.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 140px }
+.wrap { max-width: 560px; margin: 0 auto; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 12px 170px }
 h1, h2, h3 { margin: 0; text-wrap: balance }
 button, input, select, textarea { font: inherit; color: inherit }
 button { cursor: pointer }
@@ -105,7 +105,7 @@ button { cursor: pointer }
 .hero-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 16px; position: relative; z-index: 1 }
 .hero-stats a, .hero-stats div { display: block; text-decoration: none; color: inherit; background: rgba(255,255,255,.1); border-radius: 12px; padding: 9px 10px; min-width: 0 }
 .hero-stats span { display: block; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.72); font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
-.hero-stats b { display: block; font-family: var(--f-display); font-weight: 600; font-size: 15px; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.hero-stats b { display: block; font-family: var(--f-display); font-weight: 600; font-size: clamp(12.5px, 3.7vw, 15px); margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .hero-stats b.hl { color: var(--hl) }
 .hero .pill { background: rgba(255,255,255,.16); color: #fff }
 
@@ -1474,8 +1474,8 @@ function renderDebts() {
       <div class="lbl">Total owed today</div>
       <div class="money"><span class="cur">${esc(sym())}</span>${Math.round(c.totalDebt).toLocaleString('en-US')}</div>
       <div class="hero-stats">
-        <div><span>Payments/mo</span><b>${shortMoney(req)}</b></div>
-        <div><span>Interest/mo</span><b>${shortMoney(int)}</b></div>
+        <div><span>Monthly</span><b>${shortMoney(req)}</b></div>
+        <div><span>Interest</span><b>${shortMoney(int)}</b></div>
         <a href="#payoff"><span>Debt-free</span><b class="hl">${c.payoff.debtFree ? shortMonth(c.payoff.date) : '8+ yrs'}</b></a>
       </div>
     </section>
@@ -1868,11 +1868,11 @@ function comingUp() {
     const n = it.days, hot = it.kind === 'bill' ? it.overdue || n <= 3 : it.kind === 'due' ? !it.covered && n <= 3 : n <= 1;
     const whenTxt = n < 0 ? Math.abs(n) + ' days late' : n === 0 ? 'today' : n === 1 ? 'tomorrow' : 'in ' + n + ' days';
     let detail = '', action = '';
-    if (it.kind === 'payday') { detail = `${wd(it.date)} · ${whenTxt}. Work through the payday checklist before sending extra to debt.`; action = `<a class="mini" href="#payday" style="display:inline-grid;place-items:center;text-decoration:none;color:inherit">Checklist</a>`; }
+    if (it.kind === 'payday') { detail = `${wd(it.date)} · ${whenTxt}`; action = `<a class="mini" href="#payday" style="display:inline-grid;place-items:center;text-decoration:none;color:inherit">Checklist</a>`; }
     if (it.kind === 'due') detail = `${whole(it.amount)} · ${whenTxt} · ${it.payroll ? 'deducted from pay' : it.covered ? 'payment logged' : it.paid > 0 ? whole(it.paid) + ' logged so far' : 'not logged yet'}`;
-    if (it.kind === 'backup') { detail = pref.lastBackup ? `Last backup ${fmtDate(pref.lastBackup)}. Your data lives only on this phone.` : 'Your data lives only on this phone. Save a backup file and keep a copy safe.'; action = `<button class="mini" type="button" data-backup="1">Back up</button>`; }
-    if (it.kind === 'snapshot') { detail = `Enter each debt's statement balance for ${shortMonth(it.month)} to build your trend line.`; action = `<button class="mini" type="button" data-snap="${esc(it.month)}">Record</button>`; }
-    if (it.kind === 'bill') { detail = `${whole(it.amount)} · ${it.overdue ? '<b style="color:var(--bad)">' + whenTxt + '</b>' : whenTxt} · set aside before payday`; action = `<button class="mini" type="button" data-billpaid="${esc(it.id)}">Mark paid</button>`; }
+    if (it.kind === 'backup') { detail = pref.lastBackup ? `Last one ${fmtDate(pref.lastBackup, false)} · data lives only here` : 'Your data lives only on this phone'; action = `<button class="mini" type="button" data-backup="1">Back up</button>`; }
+    if (it.kind === 'snapshot') { detail = `Statement balances for ${shortMonth(it.month)}`; action = `<button class="mini" type="button" data-snap="${esc(it.month)}">Record</button>`; }
+    if (it.kind === 'bill') { detail = `${whole(it.amount)} · ${it.overdue ? '<b style="color:var(--bad)">' + whenTxt + '</b>' : whenTxt} `; action = `<button class="mini" type="button" data-billpaid="${esc(it.id)}">Mark paid</button>`; }
     return `<div class="rem"><div class="when${hot ? ' hot' : ''}"><b>${+it.date.slice(8)}</b><span>${MON[+it.date.slice(5, 7) - 1]}</span></div>
       <div class="main"><div class="t">${esc(it.title)}</div><div class="s">${detail}</div></div>${action}</div>`;
   }).join('');
