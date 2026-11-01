@@ -442,8 +442,19 @@
     if (!targetDate || stillNeeded === 0) return null;
     return stillNeeded / Math.max(1, monthsBetween(today, targetDate));
   }
+  // Live savings balances: the Setup balance plus transfers logged after its as-of date. An Outside Savings
+  // transfer goes to the emergency-fund account. A balance's as-of date already includes that day.
+  function emergencyAccount(state) { const a = state.savingsAccounts || []; return a.find(x => x.id === state.settings.emergencyAccountId) || a.find(x => x.accessible) || null; }
+  function liveSavingsAccounts(state) {
+    const em = emergencyAccount(state), fallback = state.settings.cashAsOfDate;
+    return (state.savingsAccounts || []).map(a => {
+      const asOf = a.asOfDate || fallback; let added = 0;
+      if (em && a.id === em.id) for (const t of state.transactions) if (t.date && t.category === 'Outside Savings' && (!asOf || t.date > asOf)) added += +t.amount;
+      return { ...a, setupBalance: +a.balance || 0, transferred: added, balance: (+a.balance || 0) + added, asOfDate: asOf };
+    });
+  }
   function savings(state, today, calc) {
-    const s = state.settings, accts = state.savingsAccounts || [];
+    const s = state.settings, accts = liveSavingsAccounts(state);
     const total = accts.reduce((a, x) => a + (+x.balance || 0), 0);                                   // R22
     const accessible = accts.filter(x => x.accessible).reduce((a, x) => a + (+x.balance || 0), 0);
     // R23 monthly flow
@@ -602,7 +613,7 @@
     return toCSV(rows);
   }
 
-  const api = { compute, monthlyPlan, monthFlows, compareMonths, sensitivity, savings, payrollSavingsAmount, weekOfMonth, cyclePayday, paydaySteps, paydayChecklist, checkInStats, followThrough, checkInDefaults, snapshotSeries, snapshotDue, trend, monthEnd,
+  const api = { compute, monthlyPlan, monthFlows, compareMonths, sensitivity, savings, liveSavingsAccounts, emergencyAccount, payrollSavingsAmount, weekOfMonth, cyclePayday, paydaySteps, paydayChecklist, checkInStats, followThrough, checkInDefaults, snapshotSeries, snapshotDue, trend, monthEnd,
     parseStatementDate, parseAmount, matchRule, importPreview, splitDelimited, reminders, transactionsCSV, balancesCSV, flowType, cardImpact, liveBalance, liveCash, nextPayday, paydayAfterNext, lastPayday, nextDueDate,
     projectPayoff, loanProgress, cardStatus, priorities, periodsPerMonth, paymentCat, interestCat, monthKey, monthStart, edate, addDays };
   if (typeof module !== 'undefined' && module.exports) module.exports = api; else root.CTEngine = api;

@@ -1,5 +1,5 @@
 // ClearTrack service worker: offline app shell, plus reminder notifications.
-const CACHE = 'cleartrack-24d30e706c';
+const CACHE = 'cleartrack-3ce1deacf0';
 const DATA = 'cleartrack-data';   // written by the app: reminders.json; kept by this worker: notified.json
 const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './maskable-512.png', './badge-96.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });

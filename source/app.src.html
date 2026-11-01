@@ -494,6 +494,11 @@ function systemCategories() {
   for (const d of state.debts) if (!d.isRevolving) out.push({ name: E.interestCat(d), essential: true });
   return out;
 }
+// Friendly names for system categories; the stored category stays the same.
+function catLabel(name) {
+  if (name === 'Outside Savings') { const em = state && E.emergencyAccount(state); return 'Savings → ' + (em ? em.name.replace(/\s*\(.*\)\s*$/, '') : 'emergency fund'); }
+  return name;
+}
 function allCategories() { const seen = new Set(); return [...state.categories.map(c => ({ name: c.name, essential: !!c.essential })), ...systemCategories()].filter(c => !seen.has(c.name) && seen.add(c.name)); }
 function catsByUse() {
   const counts = {}; for (const t of state.transactions) if (t.category) counts[t.category] = (counts[t.category] || 0) + 1;
@@ -775,7 +780,7 @@ function renderActivity() {
   html += `<div class="search">
     <input class="in" id="f-q" type="search" placeholder="Search description, category or notes" value="${esc(filt.q)}" aria-label="Search transactions">
     <div class="filters">
-      <select class="in" id="f-cat" aria-label="Filter by category"><option value="">All categories</option>${unc ? `<option value="__none"${filt.cat === '__none' ? ' selected' : ''}>No category</option>` : ''}${cats.filter(Boolean).map(c => `<option${c === filt.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select>
+      <select class="in" id="f-cat" aria-label="Filter by category"><option value="">All categories</option>${unc ? `<option value="__none"${filt.cat === '__none' ? ' selected' : ''}>No category</option>` : ''}${cats.filter(Boolean).map(c => `<option value="${esc(c)}"${c === filt.cat ? ' selected' : ''}>${esc(catLabel(c))}</option>`).join('')}</select>
       <select class="in" id="f-m" aria-label="Filter by payment method"><option value="">All methods</option>${METHODS.map(m => `<option value="${m}"${m === filt.method ? ' selected' : ''}>${METHOD_LABEL[m]}</option>`).join('')}</select>
     </div></div>`;
   if (!rows.length) html += `<div class="empty">${state.transactions.length ? 'Nothing matches those filters.' : 'No transactions yet. Tap + to log your first one.'}</div>`;
@@ -786,7 +791,7 @@ function renderActivity() {
         const ft = E.flowType(t, state);
         const cls = ft === 'Income' ? 'inc' : t.paymentMethod === 'Credit Card' ? 'cc' : '';
         return `<li><button class="txn" data-tx="${esc(t.id)}"><div class="main"><div class="t">${esc(t.description || t.category || 'Untitled')}</div>
-          <div class="s">${fmtDate(t.date, false)} · ${t.category ? esc(t.category) : '<span style="color:var(--warn);font-weight:600">No category</span>'} · ${METHOD_LABEL[t.paymentMethod] || esc(t.paymentMethod)}</div></div>
+          <div class="s">${fmtDate(t.date, false)} · ${t.category ? esc(catLabel(t.category)) : '<span style="color:var(--warn);font-weight:600">No category</span>'} · ${METHOD_LABEL[t.paymentMethod] || esc(t.paymentMethod)}</div></div>
           <div class="amt ${cls}">${ft === 'Income' ? '+' : ''}${two(t.amount)}</div></button></li>`;
       }).join('') + `</ul></section>`;
   }
@@ -842,7 +847,7 @@ function renderPlan() {
   const isPlanning = planMonth === state.settings.planningMonth;
   const prow = r => {
     const used = r.budget > 0 ? Math.min(r.actual / r.budget, 1) : (r.actual > 0 ? 1 : 0);
-    return `<div class="prow"><div class="row"><span class="t">${esc(r.name)}</span><span class="pill ${STATUS_PILL[r.status] || 'plain'}">${r.status}</span></div>
+    return `<div class="prow"><div class="row"><span class="t">${esc(catLabel(r.name))}</span><span class="pill ${STATUS_PILL[r.status] || 'plain'}">${r.status}</span></div>
       <div class="row small"><span class="muted">${whole(r.actual)} of ${whole(r.budget)}</span><span class="${r.remaining < 0 ? 'cc' : 'muted'}">${r.remaining < 0 ? whole(-r.remaining) + ' over' : whole(r.remaining) + ' left'}</span></div>
       ${r.budget > 0 ? `<div class="bar"><span class="${r.actual > r.budget ? 'over' : ''}" style="width:${used * 100}%"></span></div>` : ''}</div>`;
   };
@@ -1163,7 +1168,7 @@ function renderSavings() {
       <div class="bar"><span style="width:${g.progress * 100}%"></span></div>
       <div class="small muted">${whole(g.planned)} a month planned${g.neededPerMonth != null ? ' · ' + whole(g.neededPerMonth) + ' needed' : ''}${g.targetDate ? ' · target ' + shortMonth(g.targetDate) : ''}</div></div>`).join('');
   const flow = sv.flow.map(f => `<li><div class="main"><div class="t">${esc(f.name)}</div><div class="s">${f.from}${f.to ? ' → ' + esc(f.to) : ''}</div></div><div class="amt">${whole(f.amount)}</div></li>`).join('');
-  const accts = sv.accounts.map(a => `<li><div class="main"><div class="t">${esc(a.name)}</div><div class="s">${a.accessible ? 'Can withdraw' : 'Not counted as spendable'}${a.notes ? ' · ' + esc(a.notes) : ''}</div></div><div class="amt">${whole(a.balance)}</div></li>`).join('');
+  const accts = sv.accounts.map(a => `<li><div class="main"><div class="t">${esc(a.name)}</div><div class="s">${a.accessible ? 'Can withdraw' : 'Not counted as spendable'}${a.transferred ? ' · includes ' + whole(a.transferred) + ' transferred' : ''}</div></div><div class="amt">${whole(a.balance)}</div></li>`).join('');
   v.innerHTML = `${planNav('savings')}
     <section class="hero">
       <div class="lbl">Savings you can reach</div>
@@ -1521,7 +1526,7 @@ function drawImport() {
   const nAdd = preview.filter(p => included(p) && p.status === 'Ready').length;
   const ncol = Math.max(...imp.rows.map(r => r.length)), c = imp.cols;
   const colSel = (id, label, val, allowNone) => `<div class="field" style="margin-top:0"><label for="${id}">${label}</label><select class="in" id="${id}">${allowNone ? '<option value="-1">None</option>' : ''}${Array.from({ length: ncol }, (_, i) => `<option value="${i}"${i === val ? ' selected' : ''}>Column ${i + 1}${c.header && imp.rows[0][i] ? ': ' + esc(imp.rows[0][i]).slice(0, 18) : ''}</option>`).join('')}</select></div>`;
-  const catOpts = sel => ['<option value="">Pick a category…</option>', ...catsByUse().map(x => `<option${x.name === sel ? ' selected' : ''}>${esc(x.name)}</option>`)].join('');
+  const catOpts = sel => ['<option value="">Pick a category…</option>', ...catsByUse().map(x => `<option value="${esc(x.name)}"${x.name === sel ? ' selected' : ''}>${esc(catLabel(x.name))}</option>`)].join('');
   const PILL = { 'Ready': 'green', 'Already logged': 'plain', 'Pick a category': 'amber', 'Fix date / amount': 'red' };
   const list = preview.map(p => `<div class="imp">
       <div class="head"><input type="checkbox" data-inc="${p.index}" aria-label="Include row ${p.index + 1}"${included(p) ? ' checked' : ''}${p.status === 'Ready' ? '' : p.status === 'Already logged' ? '' : ' disabled'}>
@@ -1578,13 +1583,14 @@ function openTx(existing) {
   let essentialTouched = editing;
   const cats = catsByUse();
   const top = cats.filter(c => c.n > 0 || state.categories.some(x => x.name === c.name)).slice(0, 8);
+  if ((state.savingsAccounts || []).length && !top.some(c => c.name === 'Outside Savings')) { const os = cats.find(c => c.name === 'Outside Savings'); if (os) { if (top.length >= 8) top.pop(); top.push(os); } }
   const layer = $('#layer');
   layer.innerHTML = `<div class="scrim" id="scrim"><form class="sheet" id="txform" role="dialog" aria-modal="true" aria-labelledby="tx-h" novalidate>
     <div class="grab"></div>
     <h3 id="tx-h">${editing ? 'Edit transaction' : 'Add a transaction'}</h3>
     <div class="amount-in"><span>${esc(sym())}</span><input id="tx-amount" inputmode="decimal" autocomplete="off" placeholder="0.00" aria-label="Amount" value="${t.amount !== '' ? Number(t.amount).toFixed(2) : ''}"></div>
-    <div class="field"><span class="lbl">Category</span><div class="chips" id="tx-chips">${top.map(c => `<button type="button" data-cat="${esc(c.name)}" aria-pressed="${c.name === t.category}">${esc(c.name)}</button>`).join('')}</div>
-      <select class="in" id="tx-cat" aria-label="All categories"><option value="">${top.length ? 'More categories…' : 'Choose a category'}</option>${cats.map(c => `<option${c.name === t.category ? ' selected' : ''}>${esc(c.name)}</option>`).join('')}</select></div>
+    <div class="field"><span class="lbl">Category</span><div class="chips" id="tx-chips">${top.map(c => `<button type="button" data-cat="${esc(c.name)}" aria-pressed="${c.name === t.category}">${esc(catLabel(c.name))}</button>`).join('')}</div>
+      <select class="in" id="tx-cat" aria-label="All categories"><option value="">${top.length ? 'More categories…' : 'Choose a category'}</option>${cats.map(c => `<option value="${esc(c.name)}"${c.name === t.category ? ' selected' : ''}>${esc(catLabel(c.name))}</option>`).join('')}</select></div>
     <div class="field"><span class="lbl">Paid with</span><div class="seg" id="tx-m">${METHODS.map(m => `<button type="button" data-m="${m}" aria-pressed="${m === t.paymentMethod}">${METHOD_LABEL[m]}</button>`).join('')}</div></div>
     <div class="actions"><button class="btn primary" id="tx-save" type="submit">${editing ? 'Save changes' : 'Save'}</button></div>
     <div class="err" id="tx-err" hidden></div>
@@ -1607,6 +1613,7 @@ function openTx(existing) {
         if (!$('#tx-amount').value) $('#tx-amount').value = (+state.settings.netPayPerPeriod || 0).toFixed(2);
       } else if (autoPay) { $('#tx-date').value = todayISO(); autoPay = false; }
     }
+    if (!editing && name === 'Outside Savings') { t.paymentMethod = 'Bank Transfer'; layer.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === 'Bank Transfer')); if (!$('#tx-desc').value) $('#tx-desc').value = 'Transfer to ' + catLabel(name).replace('Savings → ', ''); }
     t.category = name;
     layer.querySelectorAll('[data-cat]').forEach(b => b.setAttribute('aria-pressed', b.dataset.cat === name));
     $('#tx-cat').value = top.some(c => c.name === name) ? '' : name;
@@ -1714,7 +1721,9 @@ function renderSetup() {
 
   const savItems = d.savingsAccounts.map((x, i) => `<div class="item">
       ${txt('a-name-' + i, 'Account', x.name)}
-      <div class="two">${num('a-bal-' + i, 'Balance', x.balance)}${txt('a-cur-' + i, 'Currency', x.currency)}</div>
+      <div class="two">${num('a-bal-' + i, 'Balance', x.balance)}${date('a-asof-' + i, 'Balance as of', x.asOfDate || state.settings.cashAsOfDate)}</div>
+      ${(() => { const live = E.liveSavingsAccounts(state).find(a => a.id === x.id); return live && live.transferred ? `<p class="hint" style="margin:0">Now ${whole(live.balance)}, including ${whole(live.transferred)} transferred after this date. When you type a new balance from your bank, the date moves to today so transfers aren't counted twice.</p>` : ''; })()}
+      ${txt('a-cur-' + i, 'Currency', x.currency)}
       <label class="toggle" for="a-acc-${i}"><span>Can be withdrawn</span><input type="checkbox" id="a-acc-${i}"${x.accessible ? ' checked' : ''}></label>
       <button type="button" class="linkbtn del" data-del="savingsAccounts" data-i="${i}">Remove account</button></div>`).join('');
   const sav = `${savItems}<button type="button" class="linkbtn" data-add="savingsAccounts">+ Add savings account</button>`;
@@ -1810,7 +1819,12 @@ function readSetup() {
     if (document.getElementById('d-orig-' + i)) { x.originalAmount = n('d-orig-' + i) || null; x.startDate = t('d-start-' + i) || null; x.endDate = t('d-end-' + i) || null; }
   });
   d.bills.forEach((x, i) => { set(x, 'name', (t('b-name-' + i) || '').trim() || x.name); set(x, 'amount', n('b-amt-' + i)); set(x, 'dueDate', t('b-due-' + i)); set(x, 'paid', b('b-paid-' + i)); });
-  d.savingsAccounts.forEach((x, i) => { set(x, 'name', (t('a-name-' + i) || '').trim() || x.name); set(x, 'balance', n('a-bal-' + i)); set(x, 'currency', t('a-cur-' + i)); set(x, 'accessible', b('a-acc-' + i)); });
+  d.savingsAccounts.forEach((x, i) => {
+    const before = +x.balance; set(x, 'name', (t('a-name-' + i) || '').trim() || x.name); set(x, 'balance', n('a-bal-' + i)); set(x, 'currency', t('a-cur-' + i)); set(x, 'accessible', b('a-acc-' + i));
+    const dt = t('a-asof-' + i); if (dt !== undefined) x.asOfDate = dt || null;
+    // A newly typed bank balance already includes earlier transfers, so it is as of today.
+    if (+x.balance !== before && document.activeElement && document.activeElement.id === 'a-bal-' + i) { x.asOfDate = todayISO(); const el = document.getElementById('a-asof-' + i); if (el) el.value = x.asOfDate; }
+  });
   d.payrollDeductions.forEach((x, i) => { set(x, 'name', (t('p-name-' + i) || '').trim() || x.name); set(x, 'monthlyAmount', n('p-amt-' + i)); set(x, 'category', t('p-cat-' + i));
     const less = t('p-less-' + i); if (less !== undefined) x.lessDebtId = less || null; const to = t('p-to-' + i); if (to !== undefined) x.savesTo = to.trim(); });
   set(s, 'emergencyAccountId', t('s-emacct')); const mc = n('s-mincover'); if (mc !== undefined) s.minCoverMonths = mc;
