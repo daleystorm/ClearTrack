@@ -19,12 +19,12 @@ if len(sys.argv) > 1:
     site = os.path.abspath(sys.argv[1])
 else:
     site = os.path.join(HERE, 'site'); shutil.rmtree(site, ignore_errors=True)
-os.makedirs(os.path.join(site, 'icons'), exist_ok=True)
+os.makedirs(site, exist_ok=True)
 
 body = src.replace('/*ENGINE*/', engine).replace('/*STANDALONE*/false', 'true')
 title_m = re.match(r'\s*<title>.*?</title>\s*', body, re.S)
 body = body[title_m.end():] if title_m else body
-version = hashlib.sha1((body + 'v1').encode()).hexdigest()[:10]
+version = hashlib.sha1((body + 'v2-flat-icons').encode()).hexdigest()[:10]
 
 head = f'''<!doctype html>
 <html lang="en">
@@ -39,8 +39,8 @@ head = f'''<!doctype html>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="ClearTrack">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icons/icon-192.png" sizes="192x192" type="image/png">
-<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="icon" href="icon-192.png" sizes="192x192" type="image/png">
+<link rel="apple-touch-icon" href="icon-192.png">
 <style>
 :root {{ color-scheme: light; padding-top: env(safe-area-inset-top, 0px); padding-bottom: env(safe-area-inset-bottom, 0px) }}
 body {{ margin: 0; font: 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif }}
@@ -74,20 +74,20 @@ manifest = {
     "theme_color": "#0b6a4c",
     "categories": ["finance", "productivity"],
     "icons": [
-        {"src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
-        {"src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
-        {"src": "icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
+        {"src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+        {"src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"},
+        {"src": "maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"},
     ],
     "shortcuts": [
-        {"name": "Add a transaction", "url": "./#add", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
-        {"name": "Payday checklist", "url": "./#payday", "icons": [{"src": "icons/icon-192.png", "sizes": "192x192"}]},
+        {"name": "Add a transaction", "url": "./#add", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]},
+        {"name": "Payday checklist", "url": "./#payday", "icons": [{"src": "icon-192.png", "sizes": "192x192"}]},
     ],
 }
 json.dump(manifest, open(os.path.join(site, 'manifest.webmanifest'), 'w'), indent=2)
 
 sw = f'''// ClearTrack service worker: the app works offline after the first visit.
 const CACHE = 'cleartrack-{version}';
-const SHELL = ['./', './index.html', './manifest.webmanifest', './icons/icon-192.png', './icons/icon-512.png', './icons/maskable-512.png'];
+const SHELL = ['./', './index.html', './manifest.webmanifest', './icon-192.png', './icon-512.png', './maskable-512.png'];
 self.addEventListener('install', e => {{ e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); }});
 self.addEventListener('activate', e => {{
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('cleartrack-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -128,9 +128,9 @@ def icon(size, maskable=False):
     r = lw * 0.95; d.ellipse([x1 - r, y1 - r, x1 + r, y1 + r], fill=(239, 176, 76, 255), outline=(255, 255, 255, 255), width=int(lw * 0.35))
     return im.resize((size, size), Image.LANCZOS)
 
-icon(192).save(os.path.join(site, 'icons', 'icon-192.png'))
-icon(512).save(os.path.join(site, 'icons', 'icon-512.png'))
-icon(512, True).save(os.path.join(site, 'icons', 'maskable-512.png'))
+icon(192).save(os.path.join(site, 'icon-192.png'))
+icon(512).save(os.path.join(site, 'icon-512.png'))
+icon(512, True).save(os.path.join(site, 'maskable-512.png'))
 
 open(os.path.join(site, '.nojekyll'), 'w').close()
 if len(sys.argv) == 1: shutil.copy(os.path.join(HERE, 'README.md'), os.path.join(site, 'README.md'))
