@@ -1,0 +1,9 @@
+# Never commit personal financial data
+*.json
+!manifest.webmanifest
+*.csv
+*.xlsx
+seed*
+cleartrack-backup*
+__pycache__/
+source/cleartrack.html
