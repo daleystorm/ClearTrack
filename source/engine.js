@@ -368,6 +368,10 @@
     const method = opts.method || 'Credit Card', dayFirst = opts.dayFirst !== false;
     const card = cardDebt(state);
     const seen = new Set(state.transactions.map(t => t.date + '|' + Math.round(+t.amount * 100)));
+    // Pay is often logged on the 1st of the month it funds, a few days after it lands in the bank:
+    // a statement line with the same amount within 7 days of a Net Pay entry is the same pay.
+    const pay = state.transactions.filter(t => t.category === 'Net Pay' && t.date).map(t => ({ t: D(t.date), c: Math.round(+t.amount * 100) }));
+    const nearPay = (date, amount) => pay.some(p => p.c === Math.round(amount * 100) && Math.abs(D(date) - p.t) <= 7 * DAY);
     return rows.map((r, i) => {
       const date = parseStatementDate(r.date, dayFirst), signed = parseAmount(r.amount);
       const description = String(r.description || '').trim();
@@ -380,7 +384,7 @@
       const essential = cat ? !!cat.essential : !!category;
       let status;
       if (!date || amount == null) status = 'Fix date / amount';
-      else if (seen.has(date + '|' + Math.round(amount * 100))) status = 'Already logged';
+      else if (seen.has(date + '|' + Math.round(amount * 100)) || nearPay(date, amount)) status = 'Already logged';
       else if (!category) status = 'Pick a category';
       else status = 'Ready';
       return { index: i, raw: r, date, description, amount, signed, category, suggested, paymentMethod, essential,

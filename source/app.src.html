@@ -304,6 +304,16 @@ details.more > summary { color: var(--muted) }
 .tick-btn { width: 40px; height: 40px; flex: none; border-radius: 50%; border: 2px solid var(--line); background: var(--surface); color: transparent; display: grid; place-items: center }
 .tick-btn svg { width: 22px; height: 22px }
 .tick-btn[aria-pressed="true"] { background: var(--good); border-color: var(--good); color: #fff }
+.status-badge { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px 5px 7px; border-radius: 999px; font-size: 12.5px; font-weight: 700; text-decoration: none; white-space: nowrap; box-shadow: 0 2px 8px rgba(0,0,0,.18) }
+.status-badge i { width: 9px; height: 9px; border-radius: 50%; background: currentColor; margin-left: 2px }
+.status-badge b { width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 12px; background: rgba(0,0,0,.18) }
+.status-badge.s-green { background: #3fd08a; color: #06301b }
+.status-badge.s-amber { background: #ffc24a; color: #3a2400 }
+.status-badge.s-red { background: #ff5d47; color: #fff }
+.status-badge.s-red b { background: rgba(255,255,255,.25) }
+.hero-sub { display: flex; align-items: center; gap: 8px }
+.info-btn { width: 24px; height: 24px; flex: none; border-radius: 50%; border: 1.5px solid rgba(255,255,255,.55); background: transparent; color: #fff; font: 700 13px/1 var(--f-ui); display: grid; place-items: center; padding: 0 }
+.info-btn[aria-expanded="true"] { background: rgba(255,255,255,.2) }
 @media (max-width: 360px) { .grid2, .two, .three { grid-template-columns: 1fr } }
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .22s ease-out } @keyframes up { from { transform: translateY(24px); opacity: .6 } } }
 </style>
@@ -427,6 +437,16 @@ function notifySetupHtml() {
     : `<div class="actions"><button class="btn primary" type="button" id="nt-on">Turn on notifications</button></div>`}`;
 }
 
+// Pay that lands late in a month funds the next month: log it on the 1st of the month it pays for.
+function payFundsNext() { return state.settings.payFundsNextMonth !== false; }
+function payEntryFor(paydayIso) {
+  const fund = payFundsNext() ? E.edate(E.monthStart(paydayIso), 1) : E.monthStart(paydayIso);
+  const date = payFundsNext() ? fund : paydayIso;
+  const m = s => MON[+s.slice(5, 7) - 1];
+  return { date, fundMonth: fund, description: payFundsNext() ? `Salary - ${m(paydayIso)} pay (for ${m(fund)})` : `Salary - ${m(paydayIso)} pay`,
+    notes: `Received ${fmtDate(paydayIso)}` + (payFundsNext() ? `. Dated ${fmtDate(fund)} because it funds ${m(fund)} spending.` : '') };
+}
+function payLoggedFor(fundMonth) { const k = E.monthKey(fundMonth); return state.transactions.some(t => t.category === 'Net Pay' && t.date && E.monthKey(t.date) === k); }
 // Haptics: a short tap for done, a gentle double for success, a firmer double for warnings. Follows the phone's vibration setting.
 function buzz(kind) {
   if (pref.haptics === false) return;
@@ -692,9 +712,10 @@ function renderHome() {
   const cardStat = card ? `<a href="#debts"><span>Card used</span><b>${Math.round(card.used * 100)}%</b></a>` : `<div><span>Total owed</span><b>${shortMoney(c.totalDebt)}</b></div>`;
   v.innerHTML = `${banner}${setupNeeded}
     <section class="hero">
-      <div class="row" style="align-items:center"><div class="lbl">Safe to spend</div>${card ? `<span class="pill">${card.status}</span>` : ''}</div>
+      <div class="row" style="align-items:center"><div class="lbl">Safe to spend</div>${card ? `<a href="#debts" class="status-badge s-${card.level}" aria-label="Card status: ${card.status.toLowerCase()}">${card.level === 'green' ? '<i></i>' : '<b>!</b>'}Card ${card.status.charAt(0) + card.status.slice(1).toLowerCase()}</a>` : ''}</div>
       <div class="money"><span class="cur">${esc(sym())}</span>${Math.round(c.safeToSpend).toLocaleString('en-US')}</div>
-      <p>Until payday, ${wd(c.nextPayday)} ${fmtDate(c.nextPayday, false)}. Bills, debt payments, savings and your buffer are already set aside.</p>
+      <p class="hero-sub">Until payday, ${wd(c.nextPayday)} ${fmtDate(c.nextPayday, false)}<button type="button" class="info-btn" id="sts-info" aria-expanded="${!!pref.heroInfo}" aria-controls="sts-why" aria-label="What Safe to Spend means">i</button></p>
+      <p id="sts-why"${pref.heroInfo ? '' : ' hidden'}>Bills due before payday, debt payments, savings and your ${whole(c.cashBuffer)} buffer are already set aside. Your living budget comes out of this.</p>
       <div class="hero-stats">
         <a href="#payday"><span>Cash</span><b>${shortMoney(c.cash)}</b></a>
         <a href="#payday"><span>Safe extra</span><b class="hl">${shortMoney(c.safeExtra)}</b></a>
@@ -1199,6 +1220,11 @@ function renderPayday() {
   const v = $('#view'), c = calc; if (!c) { v.innerHTML = planNav('payday') + '<div class="empty">Finish Setup first.</div>'; return; }
   const pc = E.paydayChecklist(state, todayISO());
   const isToday = pc.payday === todayISO();
+  const pe = payEntryFor(pc.payday), payDone = payLoggedFor(pe.fundMonth);
+  const salary = pc.steps.find(x => x.key === 'salary');
+  const payPrompt = !payDone && salary && salary.status !== 'Skipped' && pc.payday <= todayISO()
+    ? `<div class="banner info" style="margin:10px 0 4px"><span>Log this payday's pay: ${whole(+state.settings.netPayPerPeriod || 0)}${payFundsNext() ? ' for ' + shortMonth(pe.fundMonth) : ''}?</span><button type="button" id="pay-log">Log it</button></div>`
+    : payDone ? `<p class="small" style="margin:8px 0 2px;color:var(--good);font-weight:600">✓ ${payFundsNext() ? shortMonth(pe.fundMonth) + ' pay logged' : 'Pay logged'}</p>` : '';
   const steps = pc.steps.map(st => `<div class="step${st.status === 'Done' ? ' done' : st.status === 'Skipped' ? ' skipped' : ''}">
       <button type="button" class="tick-btn" data-step="${esc(st.key)}" data-st="${st.status === 'Done' ? 'Not Yet' : 'Done'}" aria-label="${st.status === 'Done' ? 'Mark not done' : 'Mark done'}: ${esc(st.label)}" aria-pressed="${st.status === 'Done'}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></button>
@@ -1220,6 +1246,7 @@ function renderPayday() {
       <section class="card"><div class="row"><h2>Payday checklist</h2><span class="small muted">${pc.done} of ${pc.steps.length} done</span></div>
         <div class="bar"><span style="width:${pc.score * 100}%"></span></div>
         <p class="small muted" style="margin:8px 0 2px">For the ${wd(pc.payday)} ${fmtDate(pc.payday)} payday${isToday ? ' (today)' : ''}. Tap to tick a step; it starts fresh each payday.</p>
+        ${payPrompt}
         ${steps}</section>
       <details class="fold"><summary><div class="row"><h2>How Safe Extra is worked out</h2><span class="small muted">Breakdown</span></div></summary><div class="fold-body calc">${waterfallTable(c)}
         <p class="hint" style="margin:10px 0 8px">${c.netPayReceived ? 'Your latest pay is counted because it landed after your cash-on-hand date.' : 'Your latest pay is already inside cash on hand, so it isn’t counted twice.'} Update cash on hand in Setup after payday.</p></div></details>
@@ -1232,6 +1259,15 @@ function renderPayday() {
     });
     if (ok) renderPayday();
   }));
+  const pl = $('#pay-log'); if (pl) pl.addEventListener('click', async () => {
+    pl.disabled = true;
+    const amt = +state.settings.netPayPerPeriod || 0;
+    try {
+      await writeOp({ kind: 'tx-set', tx: { id: 't' + uid8(), date: pe.date, description: pe.description, category: 'Net Pay', amount: amt, paymentMethod: 'Bank Transfer', essential: true, notes: pe.notes } });
+      if (salary.status !== 'Done') await saveConfig(cfg => { cfg.paydayChecklists = cfg.paydayChecklists || {}; cfg.paydayChecklists[pc.payday] = { ...(cfg.paydayChecklists[pc.payday] || {}), salary: 'Done' }; });
+      buzz('success'); showToast('Logged ' + whole(amt) + ' pay' + (payFundsNext() ? ' for ' + shortMonth(pe.fundMonth) : '')); render();
+    } catch (e) { pl.disabled = false; showToast('Could not save. Check your connection and try again.'); }
+  });
 }
 
 // ---------- Weekly Check-In (S10) ----------
@@ -1321,6 +1357,7 @@ function comingUp() {
   return `<section class="card"><div class="row"><h2>Coming up</h2>${total > 4 ? `<button class="linkbtn" type="button" id="cu-all" style="padding:0">${showAllComing ? 'Show less' : 'All ' + total}</button>` : ''}</div><div style="margin-top:6px">${li}</div></section>`;
 }
 document.addEventListener('click', async e => {
+  if (e.target.closest('#sts-info')) { pref.heroInfo = !pref.heroInfo; lsSet(LS_PREF, pref); const w = $('#sts-why'); if (w) w.hidden = !pref.heroInfo; e.target.closest('#sts-info').setAttribute('aria-expanded', !!pref.heroInfo); return; }
   if (e.target.closest('#cu-all')) { showAllComing = !showAllComing; render(); return; }
   const sn = e.target.closest('[data-snap]'); if (sn) { openSnapshot(sn.dataset.snap); return; }
   if (e.target.closest('[data-backup]')) { backupNow(); return; }
@@ -1559,7 +1596,17 @@ function openTx(existing) {
   </form></div>`;
   const amt = $('#tx-amount');
   if (!editing) setTimeout(() => amt.focus(), 50);
+  let dateTouched = false, autoPay = false;
   const setCat = name => {
+    if (!editing && !dateTouched) {
+      if (name === 'Net Pay' && payFundsNext()) {
+        const pe = payEntryFor(todayISO()); $('#tx-date').value = pe.date; autoPay = true;
+        if (!$('#tx-desc').value) $('#tx-desc').value = pe.description;
+        if (!$('#tx-notes').value) $('#tx-notes').value = pe.notes;
+        t.paymentMethod = 'Bank Transfer'; layer.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x.dataset.m === 'Bank Transfer'));
+        if (!$('#tx-amount').value) $('#tx-amount').value = (+state.settings.netPayPerPeriod || 0).toFixed(2);
+      } else if (autoPay) { $('#tx-date').value = todayISO(); autoPay = false; }
+    }
     t.category = name;
     layer.querySelectorAll('[data-cat]').forEach(b => b.setAttribute('aria-pressed', b.dataset.cat === name));
     $('#tx-cat').value = top.some(c => c.name === name) ? '' : name;
@@ -1569,6 +1616,7 @@ function openTx(existing) {
   $('#tx-cat').addEventListener('change', e => { if (e.target.value) setCat(e.target.value); });
   layer.querySelectorAll('[data-m]').forEach(b => b.addEventListener('click', () => { t.paymentMethod = b.dataset.m; layer.querySelectorAll('[data-m]').forEach(x => x.setAttribute('aria-pressed', x === b)); }));
   $('#tx-ess').addEventListener('change', () => { essentialTouched = true; });
+  $('#tx-date').addEventListener('input', () => { dateTouched = true; });
   const close = () => { layer.innerHTML = ''; };
   $('#tx-cancel').addEventListener('click', close);
   $('#scrim').addEventListener('click', e => { if (e.target.id === 'scrim') close(); });
@@ -1622,6 +1670,8 @@ function renderSetup() {
     <div class="two">${sel('s-freq', 'Pay frequency', s.payFrequency, ['Monthly', 'Semi-Monthly', 'Biweekly', 'Weekly'])}${num('s-payday', 'Usual payday (day of month)', s.usualPayday, '', '1')}</div>
     ${num('s-net', 'Net pay per period', s.netPayPerPeriod)}
     ${num('s-other', 'Other income this cycle', s.otherIncome, 'Side income or other cash received.')}
+    <label class="toggle" for="s-pfn" style="margin-top:14px"><span>My pay funds next month's spending</span><input type="checkbox" id="s-pfn"${s.payFundsNextMonth !== false ? ' checked' : ''}></label>
+    <p class="hint" style="margin:6px 0 0">When on, pay is logged on the 1st of the month it pays for, so a late-October payday counts as November's income.</p>
     <div class="field"><label for="s-plan">Planning month</label><input class="in" type="month" id="s-plan" value="${(s.planningMonth || '').slice(0, 7)}"></div>
     ${c ? `<p class="hint">Next payday ${wd(c.nextPayday)} ${fmtDate(c.nextPayday)} · then ${fmtDate(c.paydayAfterNext)}. Weekend paydays move to the Friday before; public holidays are not adjusted. Planned cushion this month: <b>${whole(c.plannedCushion)}</b>.</p>` : ''}`;
   const cash = `${num('s-cash', 'Cash on hand (bank + wallet)', s.cashOnHand)}
@@ -1745,7 +1795,7 @@ function readSetup() {
   const t = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
   const b = id => { const el = document.getElementById(id); return el ? el.checked : undefined; };
   const set = (o, k, val) => { if (val !== undefined) o[k] = val; };
-  set(s, 'payFrequency', t('s-freq')); set(s, 'usualPayday', n('s-payday')); set(s, 'netPayPerPeriod', n('s-net')); set(s, 'otherIncome', n('s-other'));
+  set(s, 'payFrequency', t('s-freq')); set(s, 'usualPayday', n('s-payday')); set(s, 'netPayPerPeriod', n('s-net')); set(s, 'otherIncome', n('s-other')); set(s, 'payFundsNextMonth', (document.getElementById('s-pfn') || {}).checked);
   const pm = t('s-plan'); if (pm) s.planningMonth = pm + '-01';
   set(s, 'cashOnHand', n('s-cash')); set(s, 'cashAsOfDate', t('s-asof'));
   set(s, 'cardHardCeiling', n('s-hard')); set(s, 'cardSoftCeiling', n('s-soft'));
